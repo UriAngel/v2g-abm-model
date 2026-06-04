@@ -1,0 +1,56 @@
+# Default parameter values, taken directly from the v8 rules document.
+# Each parameter is annotated with the section number that defines it.
+# Values you can play with are marked TUNABLE.
+
+simulation:
+  country: "IL"               # §2  TUNABLE  — "IL" or "UK"
+  random_seed: 42             # §2  TUNABLE  — same seed = identical run
+  time_step_hours: 1          # §2  FIXED
+  horizon_hours: 8760         # §2  FIXED    — one simulated year
+  warm_up_hours: 168          # §2  FIXED    — one week discarded
+
+# §3.1 — driver typology shares per country
+typology_shares:
+  IL:
+    "Daily Charger": 0.22
+    "Public Charger": 0.32
+    "BEV 2nd Vehicle": 0.15
+    "Threshold Charger": 0.31
+  UK:
+    "Daily Charger": 0.36
+    "Public Charger": 0.31
+    "BEV 2nd Vehicle": 0.13
+    "Threshold Charger": 0.20
+
+# §3.2 — typical plug-in time at home, hours/day
+home_plugin_hours_by_typology:
+  IL:
+    "Daily Charger": 14
+    "Threshold Charger": 10
+    "BEV 2nd Vehicle": 8
+    "Public Charger": 0
+  UK:
+    "Daily Charger": 16.3   # = Sciurus 57% × 28.8h baseline
+    "Threshold Charger": 12
+    "BEV 2nd Vehicle": 9
+    "Public Charger": 0
+
+# §3.1 — typology-level mean SoC at plug-in and at end of charge
+mean_soc_at_plugin_by_typology:
+  "Daily Charger": 0.647
+  "Public Charger": 0.381
+  "BEV 2nd Vehicle": 0.543
+  "Threshold Charger": 0.461
+
+target_soc_by_typology:
+  "Daily Charger": 0.892
+  "Public Charger": 0.747
+  "BEV 2nd Vehicle": 0.870
+  "Threshold Charger": 0.850
+
+# §3.5 — physical constants
+ev_physics:
+  consumption_kwh_per_km: 0.18      # FIXED
+  v2g_soc_floor: 0.50               # §3.6  Hoke 2026 — TUNABLE in sensitivity
+  range_anxiety_floor_mean: 0.30    # §3.6  TUNABLE
+  range_anxiety_floor_std: 0.10     # §3.6  TUNABLE

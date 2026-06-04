@@ -1,0 +1,16 @@
+# Python dependencies for the V2G ABM project.
+# Install with:  pip install -r requirements.txt
+
+# Agent-based modelling framework
+mesa>=2.3.0
+
+# Numerical and data tools
+numpy>=1.26.0
+pandas>=2.1.0
+scipy>=1.11.0
+
+# Configuration files (.yaml)
+PyYAML>=6.0
+
+# Plotting (we use it from Saturday onward)
+matplotlib>=3.8.0
