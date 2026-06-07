@@ -1,15 +1,21 @@
-"""W7 plot — three charts.
+"""W7 plot — five charts for the Monday demo.
 
-  1. outputs/w7_soc_four_typologies.png
-       2×2 grid, one panel per typology, three counterfactual lines per
-       panel (V0 grey, V1G green dashed, V2G teal solid).
+  1. outputs/w7_a_single_car.png
+       2×2 grid, one car per typology, three counterfactual lines per panel.
+       Peak-hour bands shaded.  V1G is dashed so it shows through V2G.
 
-  2. outputs/w7_fleet_kwh_stored.png
-       Single panel.  Sum of stored energy across all 4 typologies at each
-       hour, one line per counterfactual.  Shows how V2G repeatedly empties
-       the fleet during evening peaks.
+  2. outputs/w7_b_batch_5cars.png
+       2×2 grid, ALL 5 cars per typology drawn as thin lines plus the
+       mean as a bold line. Shows the variation across cars.
 
-  3. outputs/w7_soc_three_counterfactuals.png  (legacy — Daily Charger only)
+  3. outputs/w7_c_fleet_kwh.png
+       Total kWh stored across all 20 cars, one line per counterfactual.
+
+  4. outputs/w7_d_cumulative_money.png
+       Running total cash flow (₪) across the fleet over the week,
+       one line per counterfactual.
+
+  5. outputs/w7_soc_three_counterfactuals.png  (legacy — Daily Charger only)
 
 Usage
 -----
@@ -17,6 +23,8 @@ Usage
 """
 
 import csv
+import statistics
+from collections import defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -27,198 +35,339 @@ from src.agents.ev_agent import (
     COUNTERFACTUAL_V1G,
     COUNTERFACTUAL_V2G,
 )
+from src.aggregator_stub import (
+    PEAK_DISCHARGE_START_HOUR,
+    PEAK_DISCHARGE_END_HOUR,
+)
 
 
 OUTPUTS_DIR = Path(__file__).resolve().parent.parent / "outputs"
+HOURS_IN_WEEK = 168
 
 COUNTERFACTUAL_COLOURS = {
-    COUNTERFACTUAL_V0:  "#888888",   # grey
-    COUNTERFACTUAL_V1G: "#2C5F2D",   # forest green
-    COUNTERFACTUAL_V2G: "#028090",   # teal
+    COUNTERFACTUAL_V0:  "#888888",
+    COUNTERFACTUAL_V1G: "#2C5F2D",
+    COUNTERFACTUAL_V2G: "#028090",
 }
-
 COUNTERFACTUAL_LABELS = {
     COUNTERFACTUAL_V0:  "V0 (naive)",
     COUNTERFACTUAL_V1G: "V1G (smart)",
     COUNTERFACTUAL_V2G: "V2G (active)",
 }
-
-# Line styles — V1G is dashed so it shows through when it overlaps V2G
-# (which happens for typologies that can't actually V2G, like Public Charger).
 COUNTERFACTUAL_LINESTYLES = {
     COUNTERFACTUAL_V0:  "-",
     COUNTERFACTUAL_V1G: "--",
     COUNTERFACTUAL_V2G: "-",
 }
 
+PEAK_BAND_COLOUR = "#FFE4B5"   # light peach
+
 
 def slug(name: str) -> str:
     return name.lower().replace(" ", "_")
 
 
-def read_soc_series(csv_path: Path) -> tuple[list[int], list[float]]:
-    """Return (hours, soc_values) read from one CSV."""
-    hours = []
-    soc = []
+def csv_path_for(typology: str, cf: str) -> Path:
+    return OUTPUTS_DIR / f"{slug(typology)}_{cf.lower()}.csv"
+
+
+def read_grouped_by_agent(csv_path: Path) -> dict[int, list[dict]]:
+    """Return a dict mapping agent_id → list of hourly rows."""
+    by_agent: dict[int, list[dict]] = defaultdict(list)
+    if not csv_path.exists():
+        return {}
     with csv_path.open() as f:
         for row in csv.DictReader(f):
-            hours.append(int(row["hour"]))
-            soc.append(float(row["soc"]))
-    return hours, soc
+            by_agent[int(row["agent_id"])].append(row)
+    return dict(by_agent)
 
 
-def read_full_log(csv_path: Path) -> list[dict]:
-    """Read every row of a CSV as a list of dicts."""
-    with csv_path.open() as f:
-        return list(csv.DictReader(f))
-
-
-def plot_fleet_kwh_stored() -> None:
-    """Chart 2 — total energy stored across the fleet (4 typologies summed).
-
-    One line per counterfactual.  Each line is the sum of (SoC × battery_kWh)
-    across all 4 typologies at each hour.  We approximate battery_kWh as a
-    constant 60 kWh per car because the W7 model gives every typology the
-    same battery size.
-    """
-    BATTERY_KWH_PER_CAR = 60.0
-    fig, ax = plt.subplots(figsize=(11, 5))
-
-    for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
-        per_typology_socs = []
-        for typology in ALL_TYPOLOGIES:
-            csv_path = OUTPUTS_DIR / f"{slug(typology)}_{cf.lower()}.csv"
-            if not csv_path.exists():
-                continue
-            rows = read_full_log(csv_path)
-            per_typology_socs.append([float(r["soc"]) for r in rows])
-
-        if not per_typology_socs:
-            continue
-
-        # Sum SoC across the 4 typologies hour-by-hour, then × battery size
-        n_hours = len(per_typology_socs[0])
-        fleet_kwh = []
-        for h in range(n_hours):
-            sum_soc = sum(s[h] for s in per_typology_socs)
-            fleet_kwh.append(sum_soc * BATTERY_KWH_PER_CAR)
-
-        ax.plot(
-            range(n_hours),
-            fleet_kwh,
-            label=COUNTERFACTUAL_LABELS[cf],
-            color=COUNTERFACTUAL_COLOURS[cf],
-            linestyle=COUNTERFACTUAL_LINESTYLES[cf],
-            linewidth=1.8,
+def add_peak_bands(ax) -> None:
+    """Shade the daily peak-hour window (17-23) for each of the 7 days."""
+    for d in range(7):
+        ax.axvspan(
+            d * 24 + PEAK_DISCHARGE_START_HOUR,
+            d * 24 + PEAK_DISCHARGE_END_HOUR,
+            color=PEAK_BAND_COLOUR,
+            alpha=0.45,
+            zorder=0,
         )
 
-    # Day boundaries
+
+def add_day_grid(ax) -> None:
     for d in range(1, 8):
-        ax.axvline(d * 24, color="#DDDDDD", linewidth=0.5)
-
-    # Reference line: maximum possible (4 cars × 60 kWh × 100% SoC)
-    fleet_max = 4 * BATTERY_KWH_PER_CAR
-    ax.axhline(fleet_max, color="#BBBBBB", linewidth=0.6, linestyle=":",
-               label=f"Fleet maximum ({fleet_max:.0f} kWh)")
-
-    ax.set_xlabel("Hour of simulated week  (D1 = Monday)")
-    ax.set_ylabel("Total fleet energy stored  (kWh)")
-    ax.set_title(
-        "Fleet-level energy stored across all 4 typologies  —  V2G empties "
-        "the fleet every evening peak"
-    )
-    ax.set_xticks([d * 24 for d in range(8)])
-    ax.set_xticklabels([f"D{d}" for d in range(1, 9)])
-    ax.set_xlim(0, 168)
-    ax.set_ylim(0, fleet_max * 1.1)
-    ax.legend(loc="lower right", fontsize=10)
-    ax.grid(True, alpha=0.3)
-
-    out_path = OUTPUTS_DIR / "w7_fleet_kwh_stored.png"
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    print(f"Saved {out_path.relative_to(OUTPUTS_DIR.parent)}")
+        ax.axvline(d * 24, color="#DDDDDD", linewidth=0.4, zorder=1)
 
 
-def main() -> None:
+# ============================================================================
+#  Chart 1 — Single representative car per typology
+# ============================================================================
+
+def plot_single_rep() -> None:
     fig, axes = plt.subplots(2, 2, figsize=(13, 7), sharey=True)
-    axes_flat = axes.flatten()
 
-    for ax, typology in zip(axes_flat, ALL_TYPOLOGIES):
-        # Plot order: V0 first, then V2G, then V1G last so the dashed
-        # green V1G line is visible on top wherever it coincides with V2G.
+    for ax, typology in zip(axes.flatten(), ALL_TYPOLOGIES):
+        add_peak_bands(ax)
+        add_day_grid(ax)
         for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
-            csv_path = OUTPUTS_DIR / f"{slug(typology)}_{cf.lower()}.csv"
-            if not csv_path.exists():
+            by_agent = read_grouped_by_agent(csv_path_for(typology, cf))
+            if not by_agent:
                 continue
-            hours, soc = read_soc_series(csv_path)
+            # Pick the first agent as the representative
+            first_id = sorted(by_agent.keys())[0]
+            rows = by_agent[first_id]
+            hours = [int(r["hour"]) for r in rows]
+            soc = [float(r["soc"]) * 100 for r in rows]
             ax.plot(
-                hours,
-                [s * 100 for s in soc],
+                hours, soc,
                 label=COUNTERFACTUAL_LABELS[cf],
                 color=COUNTERFACTUAL_COLOURS[cf],
                 linestyle=COUNTERFACTUAL_LINESTYLES[cf],
                 linewidth=1.6,
             )
 
-        # Day boundaries
-        for d in range(1, 8):
-            ax.axvline(d * 24, color="#DDDDDD", linewidth=0.4)
+        ax.set_title(typology, fontsize=12, fontweight="bold")
+        ax.set_xticks([d * 24 for d in range(8)])
+        ax.set_xticklabels([f"D{d}" for d in range(1, 9)], fontsize=9)
+        ax.set_xlim(0, HOURS_IN_WEEK)
+        ax.set_ylim(0, 105)
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="lower right", fontsize=8)
+
+    fig.supxlabel("Hour of simulated week  (D1 = Monday) — peach bands = TAOZ peak window 17:00-23:00")
+    fig.supylabel("State of charge  (%)")
+    fig.suptitle(
+        "Single representative car per typology  —  V0 vs V1G vs V2G  (TAOZ summer prices)",
+        fontsize=13,
+    )
+    out = OUTPUTS_DIR / "w7_a_single_car.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    print(f"Saved {out.relative_to(OUTPUTS_DIR.parent)}")
+
+
+# ============================================================================
+#  Chart 2 — Batch of 5 cars per typology (all visible + mean overlay)
+# ============================================================================
+
+def plot_batch_per_typology() -> None:
+    fig, axes = plt.subplots(2, 2, figsize=(14, 7.5), sharey=True)
+
+    for ax, typology in zip(axes.flatten(), ALL_TYPOLOGIES):
+        add_peak_bands(ax)
+        add_day_grid(ax)
+        for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
+            by_agent = read_grouped_by_agent(csv_path_for(typology, cf))
+            if not by_agent:
+                continue
+
+            agent_ids = sorted(by_agent.keys())
+
+            # Thin individual lines for each car (so you can see spread)
+            socs_per_hour: dict[int, list[float]] = defaultdict(list)
+            for aid in agent_ids:
+                rows = by_agent[aid]
+                hours = [int(r["hour"]) for r in rows]
+                soc = [float(r["soc"]) * 100 for r in rows]
+                ax.plot(
+                    hours, soc,
+                    color=COUNTERFACTUAL_COLOURS[cf],
+                    linestyle=COUNTERFACTUAL_LINESTYLES[cf],
+                    linewidth=0.7,
+                    alpha=0.35,
+                )
+                for h, s in zip(hours, soc):
+                    socs_per_hour[h].append(s)
+
+            # Bold mean line on top
+            hours_sorted = sorted(socs_per_hour.keys())
+            means = [statistics.mean(socs_per_hour[h]) for h in hours_sorted]
+            ax.plot(
+                hours_sorted, means,
+                label=COUNTERFACTUAL_LABELS[cf],
+                color=COUNTERFACTUAL_COLOURS[cf],
+                linestyle=COUNTERFACTUAL_LINESTYLES[cf],
+                linewidth=2.0,
+            )
 
         ax.set_title(typology, fontsize=12, fontweight="bold")
         ax.set_xticks([d * 24 for d in range(8)])
         ax.set_xticklabels([f"D{d}" for d in range(1, 9)], fontsize=9)
-        ax.set_xlim(0, 168)
+        ax.set_xlim(0, HOURS_IN_WEEK)
         ax.set_ylim(0, 105)
         ax.grid(True, alpha=0.3)
-        ax.legend(loc="lower right", fontsize=9)
+        ax.legend(loc="lower right", fontsize=8)
 
-    # Shared axis labels
-    fig.supxlabel("Hour of simulated week  (D1 = Monday)")
+    fig.supxlabel("Hour of simulated week — peach bands = peak window — thin lines = individual cars, bold = mean")
     fig.supylabel("State of charge  (%)")
     fig.suptitle(
-        "V0 vs V1G vs V2G  —  four driver typologies, one simulated week  "
-        "(TAOZ summer prices)",
+        f"Batch of 5 cars per typology  —  individual cars (thin) + mean (bold) per counterfactual",
         fontsize=13,
     )
-
-    out_path = OUTPUTS_DIR / "w7_soc_four_typologies.png"
+    out = OUTPUTS_DIR / "w7_b_batch_5cars.png"
     fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
-    print(f"Saved {out_path.relative_to(OUTPUTS_DIR.parent)}")
+    fig.savefig(out, dpi=150)
+    print(f"Saved {out.relative_to(OUTPUTS_DIR.parent)}")
 
-    # Also keep a single-EV chart for backwards compatibility
-    fig_single, ax = plt.subplots(figsize=(11, 5))
-    for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V1G, COUNTERFACTUAL_V2G):
-        csv_path = OUTPUTS_DIR / f"{slug('Daily Charger')}_{cf.lower()}.csv"
-        if not csv_path.exists():
+
+# ============================================================================
+#  Chart 3 — Fleet total kWh stored (all 20 cars summed)
+# ============================================================================
+
+def plot_fleet_kwh() -> None:
+    BATTERY_KWH_PER_CAR = 60.0
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+
+    add_peak_bands(ax)
+    add_day_grid(ax)
+
+    n_cars_total = 0
+    for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
+        fleet_soc_per_hour: dict[int, float] = defaultdict(float)
+        n_cars = 0
+        for typology in ALL_TYPOLOGIES:
+            by_agent = read_grouped_by_agent(csv_path_for(typology, cf))
+            for aid, rows in by_agent.items():
+                n_cars += 1
+                for r in rows:
+                    fleet_soc_per_hour[int(r["hour"])] += float(r["soc"])
+
+        if not fleet_soc_per_hour:
             continue
-        hours, soc = read_soc_series(csv_path)
+        n_cars_total = n_cars
+
+        hours_sorted = sorted(fleet_soc_per_hour.keys())
+        fleet_kwh = [fleet_soc_per_hour[h] * BATTERY_KWH_PER_CAR for h in hours_sorted]
+
         ax.plot(
-            hours,
-            [s * 100 for s in soc],
+            hours_sorted, fleet_kwh,
             label=COUNTERFACTUAL_LABELS[cf],
             color=COUNTERFACTUAL_COLOURS[cf],
+            linestyle=COUNTERFACTUAL_LINESTYLES[cf],
+            linewidth=2.0,
+        )
+
+    fleet_max = n_cars_total * BATTERY_KWH_PER_CAR
+    ax.axhline(fleet_max, color="#BBBBBB", linewidth=0.6, linestyle=":",
+               label=f"Fleet maximum ({fleet_max:.0f} kWh, {n_cars_total} cars)")
+
+    ax.set_xlabel("Hour of simulated week  (D1 = Monday)")
+    ax.set_ylabel("Total fleet energy stored  (kWh)")
+    ax.set_title(
+        f"Fleet-level energy stored across {n_cars_total} cars  —  V2G empties ~half the fleet every evening peak"
+    )
+    ax.set_xticks([d * 24 for d in range(8)])
+    ax.set_xticklabels([f"D{d}" for d in range(1, 9)])
+    ax.set_xlim(0, HOURS_IN_WEEK)
+    ax.set_ylim(0, fleet_max * 1.1)
+    ax.legend(loc="lower right", fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    out = OUTPUTS_DIR / "w7_c_fleet_kwh.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    print(f"Saved {out.relative_to(OUTPUTS_DIR.parent)}")
+
+
+# ============================================================================
+#  Chart 4 — Cumulative cash flow over time (fleet-wide)
+# ============================================================================
+
+def plot_cumulative_money() -> None:
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+
+    add_peak_bands(ax)
+    add_day_grid(ax)
+
+    for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
+        fleet_cost_per_hour: dict[int, float] = defaultdict(float)
+        for typology in ALL_TYPOLOGIES:
+            by_agent = read_grouped_by_agent(csv_path_for(typology, cf))
+            for rows in by_agent.values():
+                for r in rows:
+                    fleet_cost_per_hour[int(r["hour"])] += float(r["cost_currency"])
+
+        if not fleet_cost_per_hour:
+            continue
+
+        hours_sorted = sorted(fleet_cost_per_hour.keys())
+        # Cumulative running total (so the line shows TOTAL money paid so far)
+        running = 0.0
+        cumulative = []
+        for h in hours_sorted:
+            running += fleet_cost_per_hour[h]
+            cumulative.append(running)
+
+        ax.plot(
+            hours_sorted, cumulative,
+            label=COUNTERFACTUAL_LABELS[cf],
+            color=COUNTERFACTUAL_COLOURS[cf],
+            linestyle=COUNTERFACTUAL_LINESTYLES[cf],
+            linewidth=2.2,
+        )
+
+    ax.axhline(0, color="#444444", linewidth=0.6, linestyle="-", alpha=0.5)
+
+    ax.set_xlabel("Hour of simulated week  (D1 = Monday)")
+    ax.set_ylabel("Cumulative fleet cost  (₪, NIS)")
+    ax.set_title(
+        f"Cumulative cash flow — fleet of 20 cars  —  V0 sinks, V1G slows, V2G goes positive"
+    )
+    ax.set_xticks([d * 24 for d in range(8)])
+    ax.set_xticklabels([f"D{d}" for d in range(1, 9)])
+    ax.set_xlim(0, HOURS_IN_WEEK)
+    ax.legend(loc="upper left", fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    out = OUTPUTS_DIR / "w7_d_cumulative_money.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    print(f"Saved {out.relative_to(OUTPUTS_DIR.parent)}")
+
+
+# ============================================================================
+#  Legacy single-panel chart (Daily Charger only) — kept for backwards compat
+# ============================================================================
+
+def plot_legacy_single() -> None:
+    fig, ax = plt.subplots(figsize=(11, 5))
+    add_peak_bands(ax)
+    add_day_grid(ax)
+    for cf in (COUNTERFACTUAL_V0, COUNTERFACTUAL_V2G, COUNTERFACTUAL_V1G):
+        by_agent = read_grouped_by_agent(csv_path_for("Daily Charger", cf))
+        if not by_agent:
+            continue
+        rows = by_agent[sorted(by_agent.keys())[0]]
+        hours = [int(r["hour"]) for r in rows]
+        soc = [float(r["soc"]) * 100 for r in rows]
+        ax.plot(
+            hours, soc,
+            label=COUNTERFACTUAL_LABELS[cf],
+            color=COUNTERFACTUAL_COLOURS[cf],
+            linestyle=COUNTERFACTUAL_LINESTYLES[cf],
             linewidth=1.8,
         )
-    for d in range(1, 8):
-        ax.axvline(d * 24, color="#DDDDDD", linewidth=0.5)
     ax.set_title("V0 vs V1G vs V2G — Daily Charger only (legacy single-panel view)")
     ax.set_xlabel("Hour of simulated week")
     ax.set_ylabel("State of charge (%)")
     ax.set_xticks([d * 24 for d in range(8)])
     ax.set_xticklabels([f"Day {d}" for d in range(1, 9)])
-    ax.set_xlim(0, 168)
+    ax.set_xlim(0, HOURS_IN_WEEK)
     ax.set_ylim(0, 110)
     ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3)
-    out_path = OUTPUTS_DIR / "w7_soc_three_counterfactuals.png"
-    fig_single.tight_layout()
-    fig_single.savefig(out_path, dpi=150)
-    print(f"Saved {out_path.relative_to(OUTPUTS_DIR.parent)}")
+    out = OUTPUTS_DIR / "w7_soc_three_counterfactuals.png"
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+    print(f"Saved {out.relative_to(OUTPUTS_DIR.parent)}")
 
-    # Chart 3 — fleet kWh stored
-    plot_fleet_kwh_stored()
+
+def main() -> None:
+    plot_single_rep()
+    plot_batch_per_typology()
+    plot_fleet_kwh()
+    plot_cumulative_money()
+    plot_legacy_single()
 
 
 if __name__ == "__main__":
