@@ -63,17 +63,23 @@ def write_log_to_csv(agent: EVAgent, path: Path) -> None:
 
 def summarise(agent: EVAgent) -> dict:
     """Return a few headline numbers for one week of simulation."""
-    energy_in = sum(
+    kwh_bought = sum(
         row["energy_kwh"] for row in agent.hourly_log if row["action"] == "CHARGE"
     )
-    money_spent = sum(row["cost_currency"] for row in agent.hourly_log)
+    kwh_sold = sum(
+        -row["energy_kwh"] for row in agent.hourly_log if row["action"] == "DISCHARGE"
+    )
+    net_money = sum(row["cost_currency"] for row in agent.hourly_log)
     final_soc = agent.state.soc
     n_charge_hours = sum(1 for row in agent.hourly_log if row["action"] == "CHARGE")
+    n_discharge_hours = sum(1 for row in agent.hourly_log if row["action"] == "DISCHARGE")
     return {
         "counterfactual": agent.counterfactual,
-        "kWh bought": round(energy_in, 2),
-        "money spent": round(money_spent, 2),
+        "kWh bought": round(kwh_bought, 1),
+        "kWh sold": round(kwh_sold, 1),
+        "net cost (- = earned)": round(net_money, 2),
         "charge hours": n_charge_hours,
+        "discharge hours": n_discharge_hours,
         "ending SoC": round(final_soc, 3),
     }
 
@@ -100,7 +106,9 @@ def main() -> None:
     print("\nNotes:")
     print(" - V0 always charges any hour it is plugged in, ignoring price.")
     print(" - V1G charges only when price is off-peak or SoC is below the floor.")
-    print(" - V2G is currently a stub (= V1G).  Saturday adds the real V2G logic.")
+    print(" - V2G adds: discharge during evening peak (17:00-22:00) when SoC > 50%")
+    print("   and current price >= the agent's OSP (Optimal Selling Price).")
+    print(" - Negative net cost = the owner earned money on net.")
 
 
 if __name__ == "__main__":

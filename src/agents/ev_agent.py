@@ -16,16 +16,18 @@ Every hour of the simulated year, the agent runs its step() method which:
   3. battery health (Step C) — placeholder until W8, then Gasper 2023
   4. log — records the hour's energy in/out, cost, end-of-hour state
 
-W7 Friday version implements:
+W7 Friday + Saturday version implements:
   * Step A — simple morning/evening commute
-  * Step B for V0 (naive) and V1G (smart-charging) counterfactuals
-  * Step B for V2G is a stub until Saturday
+  * Step B for V0 (naive), V1G (smart-charging), V2G (active discharge)
+  * V2G: discharges during the evening peak when SoC > 50% and
+         price >= the agent's personal OSP (Optimal Selling Price)
   * Step C is a stub until W8
 """
 
 from dataclasses import dataclass, field
 
 from src.pricing import price_at_hour, CHEAP_THRESHOLD_FOR_V1G
+from src.aggregator_stub import aggregator_signals_discharge
 
 
 # -----------------------------------------------------------------------------
@@ -152,6 +154,18 @@ class EVAgent:
         elif typology == THRESHOLD_CHARGER:
             self.state.target_soc = 0.85
 
+        # V2G setup — only relevant for the V2G counterfactual.
+        # The agent's personal OSP (Optimal Selling Price) is the minimum price
+        # at which it will agree to discharge.  Saturday simplification: set it
+        # to a value just above the shoulder price so the agent accepts during
+        # the evening peak (0.45) but refuses during shoulder hours (0.20).
+        # W8 will derive OSP from Liao's marginal-cost equation per agent.
+        if counterfactual == COUNTERFACTUAL_V2G:
+            self.state.v2g_capable = True
+            self.state.v2g_opted_in = True
+            self.state.osp = 0.30
+            self.state.max_discharge_power_kw = 9.6
+
         # Hour-by-hour log
         self.hourly_log: list[dict] = []
 
@@ -263,7 +277,7 @@ class EVAgent:
         if self.counterfactual == COUNTERFACTUAL_V1G:
             return self._rule_v1g(price_per_kwh)
         if self.counterfactual == COUNTERFACTUAL_V2G:
-            return self._rule_v2g_stub(price_per_kwh)
+            return self._rule_v2g(hour_of_day, price_per_kwh)
         raise ValueError(f"unknown counterfactual {self.counterfactual!r}")
 
     # V0: naive charging — charge whenever plugged in and not full
@@ -281,11 +295,79 @@ class EVAgent:
             return self._do_charge(price_per_kwh)
         return "IDLE", 0.0, 0.0
 
-    # V2G: Saturday adds the OSP gate + aggregator signal + discharge logic
-    def _rule_v2g_stub(self, price_per_kwh: float) -> tuple[str, float, float]:
-        # For W7-Friday, V2G behaves identically to V1G — placeholder.
-        # Saturday morning the real V2G logic replaces this stub.
-        return self._rule_v1g(price_per_kwh)
+    # V2G: real Saturday logic — discharges during evening peak if profitable
+    def _rule_v2g(
+        self,
+        hour_of_day: int,
+        price_per_kwh: float,
+    ) -> tuple[str, float, float]:
+        """V2G decision rule (rules §3.5 priority order).
+
+        Priority:
+          1. If SoC < range-anxiety floor → CHARGE (driver protection)
+          2. If aggregator says "discharge" AND price ≥ OSP AND SoC > V2G floor
+             AND v2g_opted_in → DISCHARGE
+          3. If SoC < target AND price is cheap → CHARGE
+          4. Else → IDLE
+        """
+        # Priority 1 — emergency charge
+        if self.state.soc < self.state.range_anxiety_soc_floor:
+            return self._do_charge(price_per_kwh)
+
+        # Priority 2 — V2G discharge
+        wants_to_sell = (
+            aggregator_signals_discharge(hour_of_day)
+            and self.state.v2g_opted_in
+            and self.state.v2g_capable
+            and self.state.soc > V2G_SOC_FLOOR
+            and price_per_kwh >= self.state.osp
+        )
+        if wants_to_sell:
+            return self._do_discharge(price_per_kwh)
+
+        # Priority 3 — smart charge (V1G logic)
+        if self.state.soc < self.state.target_soc and price_per_kwh <= CHEAP_THRESHOLD_FOR_V1G:
+            return self._do_charge(price_per_kwh)
+
+        # Priority 4 — idle
+        return "IDLE", 0.0, 0.0
+
+    # ------------------------------------------------------------------
+    # Physical action: discharge the battery to the grid for one hour
+    # ------------------------------------------------------------------
+    def _do_discharge(self, price_per_kwh: float) -> tuple[str, float, float]:
+        """Discharge as much as possible in one hour, bounded by:
+          - max_discharge_power_kw         (charger speed)
+          - SoC above V2G_SOC_FLOOR        (don't drain below 50%)
+          - discharging efficiency loss    (some energy lost in conversion)
+
+        Returns the energy as a NEGATIVE number (energy leaving the battery)
+        and cost as a negative number (income to the owner).
+        """
+        # How much we can pull from the battery without breaching the floor
+        headroom_above_floor_kwh = (
+            (self.state.soc - V2G_SOC_FLOOR)
+            * self.state.battery_kwh_usable
+            * self.state.soh
+        )
+        max_this_hour_kwh = self.state.max_discharge_power_kw * 1.0  # 1 hour
+        energy_out_of_battery_kwh = min(max_this_hour_kwh, max(0.0, headroom_above_floor_kwh))
+
+        if energy_out_of_battery_kwh <= 0.0:
+            # No headroom — nothing to sell
+            return "IDLE", 0.0, 0.0
+
+        # Discharging efficiency loss: battery loses X kWh, grid receives
+        # X * efficiency_d kWh.
+        energy_to_grid_kwh = energy_out_of_battery_kwh * self.state.charging_efficiency_d
+
+        # Lower the SoC by what the battery actually lost (not what the grid received)
+        soc_decrease = energy_out_of_battery_kwh / (self.state.battery_kwh_usable * self.state.soh)
+        self.state.soc -= soc_decrease
+
+        # Owner is PAID for what the grid received.  Cost is negative (income).
+        revenue = energy_to_grid_kwh * price_per_kwh
+        return "DISCHARGE", -energy_to_grid_kwh, -revenue
 
     # ------------------------------------------------------------------
     # Physical action: charge the battery for one hour

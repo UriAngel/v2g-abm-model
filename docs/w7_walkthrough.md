@@ -58,7 +58,33 @@ open outputs/w7_soc_three_counterfactuals.png  # view it
 
 ## Saturday — V2G real (replaces stub)
 
-(To be filled in Saturday.)
+| File added | What it adds |
+|---|---|
+| `src/aggregator_stub.py` | Tells each EV "discharge now" between 17:00 and 22:00 — the simplest possible aggregator signal |
+| `src/agents/ev_agent.py` (extended) | New `_rule_v2g` method implementing the priority order from v8 §3.5: emergency charge → V2G discharge (OSP gate + aggregator signal + SoC floor) → smart charge → idle |
+| `src/agents/ev_agent.py` (`_do_discharge`) | Physical discharge logic: pulls from battery, respects max-discharge power and the 50% SoC floor, applies discharging efficiency, records the energy and revenue |
+
+The agent's OSP (Optimal Selling Price) is set to 0.30 — between the shoulder (0.20) and peak (0.45) prices. That means the agent accepts every discharge offer during the peak window and rejects every offer outside it. W8 will make OSP a per-agent value derived from Liao's marginal-cost equation.
+
+### Headline numbers after Saturday
+
+| Counterfactual | kWh bought | kWh sold | Net cost (− = earned) | Charge h | Discharge h | Ending SoC |
+|---|---|---|---|---|---|---|
+| V0 (naive) | 65.7 | 0 | **25.14** | 86 | 0 | 100% |
+| V1G (smart) | 63.0 | 0 | **6.30** | 9 | 0 | 95.8% |
+| V2G (active) | 182.0 | 127.2 | **−39.02** | 26 | 20 | 61.1% |
+
+The V2G owner ends the week with **a net income of 39.02 currency units**, versus V0 paying 25.14 and V1G paying 6.30. V2G buys more energy because it has to refill the battery after each evening discharge — but it sells that energy back at 4.5× the buying price, so the net is strongly positive.
+
+### What the chart shows
+
+`outputs/w7_soc_three_counterfactuals.png`:
+
+- **V0 (gray)** hugs 100% almost continuously, dipping only during the morning and evening commute.
+- **V1G (green)** sits at 80–95%, charging only during cheap hours.
+- **V2G (teal)** has a distinctive sawtooth: drops to the 50% floor every evening peak as the car discharges to the grid, then climbs back to 90%+ during off-peak hours overnight.
+
+The visible discharge events on V2G are the entire point — V1G saves money, V2G makes money.
 
 ---
 
