@@ -83,7 +83,8 @@ def read_grouped_by_agent(csv_path: Path) -> dict[int, list[dict]]:
 
 
 def add_peak_bands(ax) -> None:
-    """Shade the daily peak-hour window (17-23) for each of the 7 days."""
+    """Shade the daily peak-hour window (17-23) for each of the 7 days.
+    The first band gets a label so it appears in the legend."""
     for d in range(7):
         ax.axvspan(
             d * 24 + PEAK_DISCHARGE_START_HOUR,
@@ -91,6 +92,7 @@ def add_peak_bands(ax) -> None:
             color=PEAK_BAND_COLOUR,
             alpha=0.45,
             zorder=0,
+            label="Peak hours 17-23" if d == 0 else None,
         )
 
 
@@ -309,9 +311,10 @@ def plot_cumulative_money() -> None:
     ax.axhline(0, color="#444444", linewidth=0.6, linestyle="-", alpha=0.5)
 
     ax.set_xlabel("Hour of simulated week  (D1 = Monday)")
-    ax.set_ylabel("Cumulative fleet cost  (₪, NIS)")
+    ax.set_ylabel("Cumulative fleet cost  (₪, NIS)    ↓ negative = owner earned")
     ax.set_title(
-        f"Cumulative cash flow — fleet of 20 cars  —  V0 sinks, V1G slows, V2G goes positive"
+        "Cumulative cash flow — fleet of 20 cars  "
+        "(positive = owner spent, negative = owner earned)"
     )
     ax.set_xticks([d * 24 for d in range(8)])
     ax.set_xticklabels([f"D{d}" for d in range(1, 9)])
