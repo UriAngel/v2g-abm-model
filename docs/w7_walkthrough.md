@@ -4,51 +4,67 @@ Trinity Week 7 of the dissertation. Goal of the week: a working `EVAgent` class 
 
 ---
 
-## Thursday (today) — project skeleton
+## Thursday — project skeleton
 
 | File | What it is | Why |
 |---|---|---|
-| `README.md` | Project overview | First thing anyone (including David, examiners) sees |
-| `requirements.txt` | List of Python libraries needed | One command installs everything |
-| `src/__init__.py` | Marks `src/` as a Python package | Lets us write `from src.agents import EVAgent` |
-| `src/agents/__init__.py` | Marks `src/agents/` as a sub-package | Same reason |
-| `src/agents/ev_agent.py` | The first agent class — state variables only, no decision logic yet | Foundation for Friday/Saturday work. Sections of the v8 rules document are cited inside the docstrings. |
-| `src/config/default_config.yaml` | Default parameter values from v8 §2, §3.1, §3.2, §3.5 | One file holds all the numbers we'll later tune |
-| `src/main.py` | The entry point that runs when you type `python -m src.main` | Currently just confirms the agent imports without errors |
-| `outputs/.gitkeep` | Empty placeholder so the `outputs/` folder is tracked by git | CSVs will appear here Friday |
-| `docs/w7_walkthrough.md` | This file | Plain-English record of what was built each day |
+| `README.md` | Project overview | First thing anyone sees |
+| `requirements.txt` | List of Python libraries | One command installs everything |
+| `src/agents/ev_agent.py` | The first agent class — state variables only | Foundation for Friday's logic |
+| `src/config/default_config.yaml` | Default parameter values from v8 | One file holds all the numbers |
+| `src/main.py` | The entry point | Runs the demo |
 
-### What you can do right now to confirm everything works
-
-Open a Terminal and run:
-
-```bash
-cd ~/Documents/GitHub/v2g-abm-model
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python -m src.main
-```
-
-You should see:
-
-```
-=== V2G ABM — Trinity Week 7, Thursday-night skeleton ===
-Created EVAgent id=1, typology=Daily Charger, counterfactual=V0
-Starting SoC = 80%, battery = 60.0 kWh, chemistry = NMC
-Skeleton OK.  Next: Friday adds step() logic.
-```
-
-If you see that output, the project is correctly set up. If you see an error, send me the exact error message and we fix it.
-
-If you don't want to run Terminal commands yourself, that's fine — GitHub Desktop will show you all the files I added under "Changes". Click **Commit to main**, then **Push origin**. The code lives in your repo and we can run it later together.
+Smoke test result: ✅ runs successfully on user's machine, prints the expected startup line.
 
 ---
 
-## Friday — mobility + V0 + V1G
+## Friday — mobility + V0 + V1G + chart
 
-(To be filled in tomorrow.)
+| File added | What it adds |
+|---|---|
+| `src/pricing.py` | Simple hourly electricity-price function: off-peak / shoulder / peak |
+| `src/agents/ev_agent.py` (extended) | Step A (mobility), Step B (V0 rule + V1G rule + V2G stub), Step C (placeholder), hourly logging |
+| `src/run_demo.py` | Driver script that runs the EV through one week for each counterfactual |
+| `src/plot_demo.py` | Generates the V0-vs-V1G-vs-V2G comparison chart |
+| `src/main.py` (updated) | Now calls the demo runner directly |
+| `outputs/v0_ev01.csv` | One row per simulated hour, V0 counterfactual |
+| `outputs/v1g_ev01.csv` | Same, V1G counterfactual |
+| `outputs/v2g_ev01.csv` | Same, V2G stub (= V1G until Saturday) |
+| `outputs/w7_soc_three_counterfactuals.png` | The headline chart for Monday |
 
-## Saturday — V2G + first chart
+### Headline numbers from the W7 demo
+
+For one Daily Charger over one simulated week:
+
+| Counterfactual | kWh bought | Money spent | Charge hours | Ending SoC |
+|---|---|---|---|---|
+| **V0 (naive)** | 65.68 | **25.14** | 86 | 100.0 % |
+| **V1G (smart)** | 63.00 | **6.30** | 9 | 95.8 % |
+| **V2G (stub)** | 63.00 | 6.30 | 9 | 95.8 % |
+
+V1G uses **4× less money** than V0 for almost the same energy bought.  The chart shows V0 (gray) hugging 100% throughout the week while V1G (green) sits at 80-95% — only topping up during cheap hours.
+
+### How to reproduce locally
+
+```bash
+cd ~/Documents/GitHub/v2g-abm-model
+source venv/bin/activate
+python -m src.main           # runs the simulation, writes 3 CSVs
+python -m src.plot_demo      # makes the chart
+open outputs/w7_soc_three_counterfactuals.png  # view it
+```
+
+---
+
+## Saturday — V2G real (replaces stub)
 
 (To be filled in Saturday.)
+
+---
+
+## Monday — demo prep
+
+Materials ready for the meeting:
+- `outputs/v0_ev01.csv`, `outputs/v1g_ev01.csv`, `outputs/v2g_ev01.csv` — the raw data
+- `outputs/w7_soc_three_counterfactuals.png` — the chart
+- This walkthrough — the explanation

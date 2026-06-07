@@ -11,30 +11,31 @@ Each EVAgent represents one electric car. The car has:
     power back to the grid
 
 Every hour of the simulated year, the agent runs its step() method which:
-  1. moves the car if it is supposed to be driving
-  2. checks whether it is currently plugged in
-  3. if plugged in, decides: charge / discharge / idle
-  4. updates battery health
-  5. logs the hour's profit, energy in/out, and end-of-hour state
+  1. mobility (Step A) — drives if it should be driving this hour
+  2. charging decision (Step B) — applies the rule that matches its counterfactual
+  3. battery health (Step C) — placeholder until W8, then Gasper 2023
+  4. log — records the hour's energy in/out, cost, end-of-hour state
 
-This file (Trinity W7, Thursday-night version) defines the STATE VARIABLES
-only. The decision logic is added Friday-Saturday.
+W7 Friday version implements:
+  * Step A — simple morning/evening commute
+  * Step B for V0 (naive) and V1G (smart-charging) counterfactuals
+  * Step B for V2G is a stub until Saturday
+  * Step C is a stub until W8
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+
+from src.pricing import price_at_hour, CHEAP_THRESHOLD_FOR_V1G
 
 
 # -----------------------------------------------------------------------------
 # Typology — the four driver categories from Hoke 2026 (rules §3.1)
 # -----------------------------------------------------------------------------
-# Each entry is a string label. We use simple Python strings instead of an
-# enum to keep the code readable for non-developers.
 
-DAILY_CHARGER = "Daily Charger"        # 22% of IL, 36% of UK sample
-PUBLIC_CHARGER = "Public Charger"      # 32% of IL, 31% of UK sample
-BEV_2ND_VEHICLE = "BEV 2nd Vehicle"    # 15% of IL, 13% of UK sample
-THRESHOLD_CHARGER = "Threshold Charger"  # 31% of IL, 20% of UK sample
+DAILY_CHARGER = "Daily Charger"
+PUBLIC_CHARGER = "Public Charger"
+BEV_2ND_VEHICLE = "BEV 2nd Vehicle"
+THRESHOLD_CHARGER = "Threshold Charger"
 
 ALL_TYPOLOGIES = (
     DAILY_CHARGER,
@@ -45,120 +46,265 @@ ALL_TYPOLOGIES = (
 
 
 # -----------------------------------------------------------------------------
-# State variables — rules §3.4
+# Counterfactuals (rules §0)
 # -----------------------------------------------------------------------------
-# A "dataclass" is a Python convenience that builds a class for us where each
-# attribute has a default value. We use it here so the EVAgent's state is
-# described in one place with explanations.
+
+COUNTERFACTUAL_V0 = "V0"     # naive: charge any time plugged in until full
+COUNTERFACTUAL_V1G = "V1G"   # smart: defer to off-peak prices
+COUNTERFACTUAL_V2G = "V2G"   # active: V1G plus selling back to grid (Saturday)
+
+
+# -----------------------------------------------------------------------------
+# Physical constants (rules §3.5)
+# -----------------------------------------------------------------------------
+
+CONSUMPTION_KWH_PER_KM = 0.18
+V2G_SOC_FLOOR = 0.50         # §3.6  contractual minimum SoC for V2G discharge
+
+
+# -----------------------------------------------------------------------------
+# State variables (rules §3.4)
+# -----------------------------------------------------------------------------
 
 @dataclass
 class EVAgentState:
-    """All persistent state for one EV agent, updated every hour.
+    """All persistent state for one EV agent, updated every hour."""
 
-    Continuous values (state of charge, state of health) are floats between
-    0.0 and 1.0. For example, soc = 0.654 means the battery is 65.4% full.
-    """
+    # --- Battery ---
+    soc: float = 0.80
+    soh: float = 1.00
+    battery_kwh_usable: float = 60.0
+    chemistry: str = "NMC"
 
-    # --- Battery state ---
-    soc: float = 0.80              # State of charge, 0.0 to 1.0
-    soh: float = 1.00              # State of health, 0.0 to 1.0 (1.0 = brand new)
-    battery_kwh_usable: float = 60.0   # Capacity in kWh; sampled from vehicle model
+    # --- Power limits ---
+    max_charge_power_kw: float = 7.0
+    max_discharge_power_kw: float = 9.6
+    charging_efficiency_c: float = 0.95
+    charging_efficiency_d: float = 0.95
+    v2g_capable: bool = False
 
-    # --- Battery technology ---
-    chemistry: str = "NMC"         # "NMC" or "LFP" — affects aging behaviour
-    v2g_capable: bool = False      # Whether the car can sell back to the grid
-    max_charge_power_kw: float = 7.0   # Domestic AC charger default
-    max_discharge_power_kw: float = 9.6  # SCE V2G pilot mid-tier
-    charging_efficiency_c: float = 0.95  # One-way charging efficiency
-    charging_efficiency_d: float = 0.95  # One-way discharging efficiency
-
-    # --- Position and connection ---
+    # --- Position and plug-in ---
     plugged_in: bool = False
-    location: str = "home"         # one of: "home", "work", "public_dc", "driving"
+    location: str = "home"   # "home", "work", "public_dc", "driving"
+    has_home_charger: bool = True
     has_workplace_charger: bool = False
 
-    # --- Today's driving distance (resampled each morning) ---
-    daily_km_today: float = 0.0
+    # --- Daily driving ---
+    daily_km_today: float = 40.0
+    target_soc: float = 0.89    # typology-dependent
 
-    # --- Aging accumulators ---
-    cumulative_throughput_kwh: float = 0.0
-    cumulative_calendar_days: float = 0.0
-
-    # --- Behavioural / psychological scores (sampled once at simulation start) ---
-    psych_intention_z: float = 0.0       # SEM-derived intention score, §12
-    wtp_W_u: float = 0.0                 # Liao willingness, §13
-    v2g_opted_in: bool = False           # derived from intention × wtp
-    range_anxiety_soc_floor: float = 0.30  # personal floor below which CHARGE
-    osp: float = 0.0                     # personal minimum selling price
+    # --- Behaviour (sampled once at agent start, stubbed for W7) ---
+    range_anxiety_soc_floor: float = 0.30
+    osp: float = 0.0
+    v2g_opted_in: bool = False
 
 
 # -----------------------------------------------------------------------------
-# Constants — rules §3.5
-# -----------------------------------------------------------------------------
-
-V2G_SOC_FLOOR = 0.50            # Contractual minimum SoC for V2G, §3.6
-CONSUMPTION_KWH_PER_KM = 0.18   # Energy consumption while driving, §3.5
-SECONDS_PER_HOUR = 3600
-HOURS_PER_DAY = 24
-
-
-# -----------------------------------------------------------------------------
-# The EVAgent class itself
+# The EVAgent class
 # -----------------------------------------------------------------------------
 
 class EVAgent:
     """One electric vehicle in the simulation.
-
-    Each EVAgent owns an EVAgentState object that holds its current state.
-    The step() method is called once per simulated hour and updates the state.
-
-    Logic added incrementally:
-      W7 Friday  - mobility step (Step A in rules §3.5)
-      W7 Friday  - V0 (naive) charging rule
-      W7 Friday  - V1G (smart) charging rule
-      W7 Saturday - V2G (active) charging rule, OSP gate, willingness check
 
     Parameters
     ----------
     agent_id : int
         Unique identifier within the simulation.
     typology : str
-        One of the four ALL_TYPOLOGIES strings. Sets the initial driving
-        pattern, target SoC, plug-in habits, etc.
+        One of ALL_TYPOLOGIES.
     counterfactual : str
-        One of "V0", "V1G", "V2G". Determines which decision rule the agent
-        uses each hour. We run three parallel simulations, one per
-        counterfactual, on identical fleets.
+        One of "V0", "V1G", "V2G".
+
+    Examples
+    --------
+    >>> agent = EVAgent(agent_id=1, typology=DAILY_CHARGER,
+    ...                 counterfactual=COUNTERFACTUAL_V0)
+    >>> agent.step(current_hour=0, current_price_per_kwh=0.10)
     """
 
+    # Default mobility schedule — see _is_driving_now()
+    DEPARTURE_HOUR_MORNING = 8     # leaves home at 08:00
+    RETURN_HOUR_EVENING = 18       # returns home at 18:00 (drives 17:00-18:00)
+    # In W7 we model only one outbound and one inbound trip per day,
+    # each occupying a single hour for simplicity.
+
     def __init__(self, agent_id: int, typology: str, counterfactual: str):
-        # Identity
+        # Identity + validation
+        assert typology in ALL_TYPOLOGIES, f"unknown typology {typology!r}"
+        assert counterfactual in (COUNTERFACTUAL_V0,
+                                  COUNTERFACTUAL_V1G,
+                                  COUNTERFACTUAL_V2G), \
+            f"unknown counterfactual {counterfactual!r}"
         self.id = agent_id
         self.typology = typology
         self.counterfactual = counterfactual
 
-        # Validate inputs — fail loud and fast if a caller passes nonsense
-        assert typology in ALL_TYPOLOGIES, f"unknown typology {typology!r}"
-        assert counterfactual in ("V0", "V1G", "V2G"), \
-            f"unknown counterfactual {counterfactual!r}"
-
-        # State (defaults from EVAgentState; resampled in initialise())
+        # Initial state — defaults to a Daily Charger profile for now.
+        # W8 will sample these properly from the config.
         self.state = EVAgentState()
+        if typology == DAILY_CHARGER:
+            self.state.target_soc = 0.89
+        elif typology == PUBLIC_CHARGER:
+            self.state.target_soc = 0.75
+            self.state.has_home_charger = False
+        elif typology == BEV_2ND_VEHICLE:
+            self.state.target_soc = 0.87
+        elif typology == THRESHOLD_CHARGER:
+            self.state.target_soc = 0.85
 
-        # Hour-by-hour log of what happened — populated by step()
+        # Hour-by-hour log
         self.hourly_log: list[dict] = []
 
     # ------------------------------------------------------------------
-    # Placeholder — Friday's work
+    # Public step method — called once per simulated hour
     # ------------------------------------------------------------------
     def step(self, current_hour: int, current_price_per_kwh: float) -> None:
-        """Advance the agent by one simulated hour.
+        """Advance the agent by one simulated hour."""
+        hour_of_day = current_hour % 24
 
-        For now this is a stub. Friday we add:
-          Step A — mobility   (rules §3.5)
-          Step B — charge/discharge decision per counterfactual
-          Step C — update battery health
+        # Step A — mobility
+        action_mobility = self._step_mobility(hour_of_day)
+
+        # Step B — charging/discharging decision
+        # Step B is only relevant if not driving
+        if action_mobility == "DRIVING":
+            energy_kwh = 0.0
+            cost = 0.0
+            action_charge = "DRIVING"
+        else:
+            action_charge, energy_kwh, cost = self._step_charging_decision(
+                hour_of_day=hour_of_day,
+                price_per_kwh=current_price_per_kwh,
+            )
+
+        # Step C — battery health (placeholder until W8)
+        # In W8 we replace this with the Gasper 2023 equations.
+
+        # Step D — log
+        self.hourly_log.append({
+            "hour": current_hour,
+            "hour_of_day": hour_of_day,
+            "counterfactual": self.counterfactual,
+            "location": self.state.location,
+            "plugged_in": self.state.plugged_in,
+            "soc": round(self.state.soc, 4),
+            "action": action_charge,
+            "energy_kwh": round(energy_kwh, 4),
+            "price_per_kwh": current_price_per_kwh,
+            "cost_currency": round(cost, 4),
+        })
+
+    # ------------------------------------------------------------------
+    # Step A — mobility (rules §3.5)
+    # ------------------------------------------------------------------
+    def _step_mobility(self, hour_of_day: int) -> str:
+        """Move the car.  Returns one of: "DRIVING", "AT_HOME", "AT_WORK"."""
+        if self._is_driving_now(hour_of_day):
+            self.state.plugged_in = False
+            self.state.location = "driving"
+            # Trip energy: half the daily km in this single hour.
+            # (W8 splits across multiple hours for longer trips.)
+            km_this_hour = self.state.daily_km_today / 2.0
+            kwh_consumed = (km_this_hour * CONSUMPTION_KWH_PER_KM) / self.state.soh
+            # Deplete SoC. Clip at zero — but in practice this should never reach zero
+            # for a Daily Charger; W8 will flag if it does.
+            soc_drop = kwh_consumed / self.state.battery_kwh_usable
+            self.state.soc = max(0.0, self.state.soc - soc_drop)
+            return "DRIVING"
+
+        # Not driving — at home (or potentially at work, but W7 only models home plug-in)
+        if hour_of_day >= self.RETURN_HOUR_EVENING or hour_of_day < self.DEPARTURE_HOUR_MORNING:
+            self.state.location = "home"
+            self.state.plugged_in = self.state.has_home_charger
+            return "AT_HOME"
+
+        # Daytime non-driving hours = at work
+        self.state.location = "work"
+        # W7 simplification: assume not plugged in at work
+        self.state.plugged_in = self.state.has_workplace_charger
+        return "AT_WORK"
+
+    def _is_driving_now(self, hour_of_day: int) -> bool:
+        """True for the single outbound hour and single inbound hour each day.
+
+        W7 has exactly two driving hours per day:
+          DEPARTURE_HOUR_MORNING (08:00-09:00)  — half the daily km
+          RETURN_HOUR_EVENING - 1 (17:00-18:00) — the other half
         """
-        raise NotImplementedError(
-            "EVAgent.step() is not implemented yet — Friday's work."
-        )
+        return hour_of_day in (self.DEPARTURE_HOUR_MORNING,
+                               self.RETURN_HOUR_EVENING - 1)
+
+    # ------------------------------------------------------------------
+    # Step B — charge / discharge decision
+    # ------------------------------------------------------------------
+    def _step_charging_decision(
+        self,
+        hour_of_day: int,
+        price_per_kwh: float,
+    ) -> tuple[str, float, float]:
+        """Decide whether to charge / discharge / idle for this hour.
+
+        Returns
+        -------
+        action : str
+            One of "CHARGE", "DISCHARGE", "IDLE".
+        energy_kwh : float
+            Energy moved this hour (positive = bought from grid,
+            negative = sold to grid, zero = idle or stationary).
+        cost : float
+            Money paid this hour (positive = expense, negative = income).
+        """
+        # If not plugged in, nothing to do (no decision possible)
+        if not self.state.plugged_in:
+            return "IDLE", 0.0, 0.0
+
+        if self.counterfactual == COUNTERFACTUAL_V0:
+            return self._rule_v0(price_per_kwh)
+        if self.counterfactual == COUNTERFACTUAL_V1G:
+            return self._rule_v1g(price_per_kwh)
+        if self.counterfactual == COUNTERFACTUAL_V2G:
+            return self._rule_v2g_stub(price_per_kwh)
+        raise ValueError(f"unknown counterfactual {self.counterfactual!r}")
+
+    # V0: naive charging — charge whenever plugged in and not full
+    def _rule_v0(self, price_per_kwh: float) -> tuple[str, float, float]:
+        if self.state.soc < 1.0:
+            return self._do_charge(price_per_kwh)
+        return "IDLE", 0.0, 0.0
+
+    # V1G: smart charging — only charge when price is cheap (off-peak)
+    # or when SoC is below the agent's personal range-anxiety floor
+    def _rule_v1g(self, price_per_kwh: float) -> tuple[str, float, float]:
+        if self.state.soc < self.state.range_anxiety_soc_floor:
+            return self._do_charge(price_per_kwh)  # emergency
+        if self.state.soc < self.state.target_soc and price_per_kwh <= CHEAP_THRESHOLD_FOR_V1G:
+            return self._do_charge(price_per_kwh)
+        return "IDLE", 0.0, 0.0
+
+    # V2G: Saturday adds the OSP gate + aggregator signal + discharge logic
+    def _rule_v2g_stub(self, price_per_kwh: float) -> tuple[str, float, float]:
+        # For W7-Friday, V2G behaves identically to V1G — placeholder.
+        # Saturday morning the real V2G logic replaces this stub.
+        return self._rule_v1g(price_per_kwh)
+
+    # ------------------------------------------------------------------
+    # Physical action: charge the battery for one hour
+    # ------------------------------------------------------------------
+    def _do_charge(self, price_per_kwh: float) -> tuple[str, float, float]:
+        """Charge as much as we can in one hour, bounded by:
+          - max_charge_power_kw          (charger speed)
+          - remaining capacity to 100%   (don't overfill)
+          - SoH                          (degraded batteries hold less)
+        """
+        headroom_kwh = (1.0 - self.state.soc) * self.state.battery_kwh_usable * self.state.soh
+        max_this_hour_kwh = self.state.max_charge_power_kw * 1.0  # 1 hour
+        energy_drawn_kwh = min(max_this_hour_kwh, headroom_kwh)
+
+        # Charging efficiency loss: we pay for grid energy, but the battery
+        # only sees efficiency_c × grid energy
+        energy_into_battery = energy_drawn_kwh * self.state.charging_efficiency_c
+        soc_increase = energy_into_battery / (self.state.battery_kwh_usable * self.state.soh)
+        self.state.soc = min(1.0, self.state.soc + soc_increase)
+
+        cost = energy_drawn_kwh * price_per_kwh
+        return "CHARGE", energy_drawn_kwh, cost
