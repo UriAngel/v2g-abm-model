@@ -104,11 +104,13 @@ def main() -> None:
         print(" | ".join(f"{str(s[c]):>14}" for c in cols))
 
     print("\nNotes:")
+    print(" - Prices: TAOZ summer (NIS/kWh) — off-peak 0.53, shoulder 0.85, peak 1.69.")
     print(" - V0 always charges any hour it is plugged in, ignoring price.")
-    print(" - V1G charges only when price is off-peak or SoC is below the floor.")
-    print(" - V2G adds: discharge during evening peak (17:00-22:00) when SoC > 50%")
-    print("   and current price >= the agent's OSP (Optimal Selling Price).")
+    print(" - V1G charges only when price is off-peak or shoulder (not peak).")
+    print(" - V2G adds: discharge during evening peak (17:00-23:00) when SoC > 50%")
+    print("   and current price >= the agent's OSP (₪1.00).")
     print(" - Negative net cost = the owner earned money on net.")
+    print(" - Multiply weekly numbers by 52 for an annual estimate.")
 
 
 if __name__ == "__main__":

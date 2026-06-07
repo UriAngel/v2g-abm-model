@@ -1,26 +1,29 @@
 """Hourly electricity prices.
 
-For W7 we use a single simple daily curve. The same price applies to
-every day of the simulated week. From W8 onward we swap this for the
-real TAOZ (Israel) and Octopus Agile (UK) tariffs, see v8 rules §11.
+Batch 1 (Sunday W7): swapped from placeholder values to the real
+Israeli TAOZ summer schedule (v8 rules §11).  All prices are NIS per
+kWh, VAT included.
 
-This is intentionally minimal — the goal of W7 is to demonstrate that
-the V0 and V1G charging rules behave differently in response to the same
-price signal.
+This makes the demo's headline numbers come out in real shekels so
+David can react to them on Monday.
+
+Source: IEC TAOZ residential tariff, summer schedule.
 """
 
 
-# Currency-agnostic for W7 — units are "per kWh"
-PRICE_OFFPEAK = 0.10
-PRICE_SHOULDER = 0.20
-PRICE_PEAK = 0.45
+# Israeli TAOZ summer  (NIS per kWh, VAT included)
+PRICE_OFFPEAK = 0.53      # 23:00-07:00 + daytime off
+PRICE_SHOULDER = 0.85     # 07:00-17:00 weekdays
+PRICE_PEAK = 1.69         # 17:00-23:00 Sun-Thu
 
-# A V1G agent charges only if the current price is at or below this number
-CHEAP_THRESHOLD_FOR_V1G = 0.20
+# A V1G agent charges only if the current price is at or below this number.
+# Set just at shoulder so V1G can charge at off-peak (0.53) or shoulder
+# (0.85), but refuses at peak (1.69).
+CHEAP_THRESHOLD_FOR_V1G = 0.85
 
 
 def price_at_hour(hour_of_day: int) -> float:
-    """Return the electricity price at a given hour of the day.
+    """Return the TAOZ summer electricity price at a given hour of the day.
 
     Parameters
     ----------
@@ -30,15 +33,15 @@ def price_at_hour(hour_of_day: int) -> float:
     Returns
     -------
     float
-        Price per kWh in whatever currency the scenario uses.
+        Price per kWh in NIS (shekels), VAT included.
 
     Notes
     -----
-    Schedule used in the W7 demo (placeholder, replaced in W8):
-      00:00 - 06:59   off-peak   (0.10)
-      07:00 - 16:59   shoulder   (0.20)
-      17:00 - 22:59   peak       (0.45)
-      23:00 - 23:59   off-peak   (0.10)
+    Schedule (TAOZ summer, v8 §11):
+      00:00 - 06:59   off-peak    (0.53 NIS/kWh)
+      07:00 - 16:59   shoulder    (0.85 NIS/kWh)
+      17:00 - 22:59   peak        (1.69 NIS/kWh)
+      23:00 - 23:59   off-peak    (0.53 NIS/kWh)
     """
     assert 0 <= hour_of_day <= 23, f"hour_of_day must be 0-23, got {hour_of_day}"
 

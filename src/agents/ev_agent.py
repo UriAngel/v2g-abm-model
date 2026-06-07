@@ -156,14 +156,15 @@ class EVAgent:
 
         # V2G setup — only relevant for the V2G counterfactual.
         # The agent's personal OSP (Optimal Selling Price) is the minimum price
-        # at which it will agree to discharge.  Saturday simplification: set it
-        # to a value just above the shoulder price so the agent accepts during
-        # the evening peak (0.45) but refuses during shoulder hours (0.20).
+        # at which it will agree to discharge.  Sunday W7 (Batch 1): with TAOZ
+        # summer prices the shoulder is 0.85 ₪/kWh and peak is 1.69 ₪/kWh.
+        # Set OSP to 1.00 so the agent accepts during peak (1.69 >= 1.00) but
+        # refuses during shoulder (0.85 < 1.00).
         # W8 will derive OSP from Liao's marginal-cost equation per agent.
         if counterfactual == COUNTERFACTUAL_V2G:
             self.state.v2g_capable = True
             self.state.v2g_opted_in = True
-            self.state.osp = 0.30
+            self.state.osp = 1.00
             self.state.max_discharge_power_kw = 9.6
 
         # Hour-by-hour log

@@ -10,11 +10,10 @@ single-EV demo and let David see V2G visibly differ from V1G.
 """
 
 
-# Evening peak window — matches the §11 IL TAOZ_summer schedule (17:00-23:00),
-# trimmed to 17-22 because the price curve in pricing.py drops to off-peak
-# at 23:00.
+# Evening peak window — matches the §11 IL TAOZ_summer schedule (17:00-23:00).
+# Aggregator signals discharge whenever the price is at the TAOZ peak rate.
 PEAK_DISCHARGE_START_HOUR = 17
-PEAK_DISCHARGE_END_HOUR = 22   # exclusive — last discharge hour is 21
+PEAK_DISCHARGE_END_HOUR = 23   # exclusive — last discharge hour is 22
 
 
 def aggregator_signals_discharge(hour_of_day: int) -> bool:
