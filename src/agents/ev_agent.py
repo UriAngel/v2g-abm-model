@@ -1,32 +1,24 @@
 """EV Agent — implements §3 of the v8 rules document.
 
-Plain-English summary
----------------------
-Each EVAgent represents one electric car. The car has:
-  - a battery, with a state of charge (how full it is) and a state of health
-    (how worn out it is)
-  - a typical daily driving pattern, sampled from one of four driver types
-    (Daily Charger, Public Charger, BEV 2nd Vehicle, Threshold Charger)
-  - rules about when to drive, when to charge, and when (if at all) to sell
-    power back to the grid
+W8 Batch A changes (after Monday W7 supervisor meeting):
+  * Gaussian commute jitter (std 0.5h, per Brinkel 2020) replaces uniform.
+  * Log-normal daily km (sigma 0.6, per Liao 2025) replaces Gaussian.
+  * Weekend factor: Friday and Saturday (Israeli convention) use shorter
+    midday commute (11:00 to 17:00) and reduced km (factor 0.5).
+  * BEV 2nd Vehicle now drives only Tuesday, Wednesday, Thursday
+    (per David W8 meeting), down from Mon-Thu.
+  * Threshold Charger gets real threshold behaviour: it plugs in only when
+    SoC falls below charge_threshold (0.30), and stays plugged in until
+    target_soc (0.95) is reached. Daily Charger by contrast plugs in
+    whenever the vehicle is at home, regardless of current SoC.
+  * Day-of-week is now passed to pricing and aggregator so peak rates and
+    discharge signals apply only Sunday through Thursday (TAOZ summer).
 
-Every hour of the simulated year, the agent runs its step() method which:
-  1. mobility (Step A) — drives if it should be driving this hour
-  2. charging decision (Step B) — applies the rule that matches its counterfactual
-  3. battery health (Step C) — placeholder until W8, then Gasper 2023
-  4. log — records the hour's energy in/out, cost, end-of-hour state
-
-W7 Sunday (Batch 2) version implements:
-  * Per-typology profiles: each driver type has its own daily km, commute
-    hours, target SoC, and (for BEV 2nd Vehicle) which days of the week
-    they actually drive.
-  * Per-agent jitter: every agent gets a ±1 hour random offset on their
-    departure and return hours, seeded by agent_id so it's reproducible.
-  * Per-day km variation: each morning we resample daily_km_today from a
-    normal distribution centred on the typology mean.
-  * Step B for V0, V1G, V2G — unchanged from Saturday.
+Day-of-week convention (Israeli): 0=Sunday ... 4=Thursday, 5=Friday, 6=Saturday.
+The simulation week starts on Sunday hour 0.
 """
 
+import math
 import random
 from dataclasses import dataclass
 
@@ -60,62 +52,73 @@ ALL_TYPOLOGIES = (
 
 TYPOLOGY_PROFILES = {
     DAILY_CHARGER: {
-        "daily_km_mean": 40.0,        # km/day
-        "daily_km_std":  6.0,
+        # Plugs in every time the vehicle is at home, regardless of current SoC.
+        "daily_km_mean": 40.0,        # km/day, weekday
         "departure_hour_mean": 8,     # 08:00 morning out
         "return_hour_mean":   18,     # 18:00 evening back
-        "hour_jitter":         1,     # ±1 hour per agent
-        "drive_days_per_week": 7,     # Daily Charger drives every day
+        "drive_days_per_week": 7,     # workdays + weekend (Sun-Sat)
+        "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.89,
+        "target_soc":        0.89,    # Hoke 2026 Table 1
         "starting_soc":      0.85,
+        "charge_threshold":  0.0,     # 0 = no threshold; always plug in when home
     },
     PUBLIC_CHARGER: {
-        # No home charger.  W7 simplification: assume they have a workplace
-        # charger they use during the day (real Public Chargers use DC fast
-        # or workplace stations).  V2G is mostly meaningless for them in W7
-        # because they are never plugged in at home overnight when the peak
-        # hits — the aggregator's peak signal goes unanswered.
+        # No home charger; uses workplace charging.  V2G is not possible
+        # because they are never plugged in at home overnight.
         "daily_km_mean": 48.0,
-        "daily_km_std":  10.0,
         "departure_hour_mean": 7,
         "return_hour_mean":   19,
-        "hour_jitter":         2,
         "drive_days_per_week": 7,
+        "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  False,
         "has_workplace_charger": True,
-        "target_soc":        0.75,
+        "target_soc":        0.75,    # Hoke 2026 Table 1
         "starting_soc":      0.80,
+        "charge_threshold":  0.0,
     },
     BEV_2ND_VEHICLE: {
-        # Used less frequently — drives Mon-Thu only in our simplified week.
+        # David W8: drives only Tue, Wed, Thu.  Stays parked the rest of the
+        # week.  Lower utilisation overall.
         "daily_km_mean": 22.0,
-        "daily_km_std":  6.0,
-        "departure_hour_mean": 10,    # later, off-peak commute
-        "return_hour_mean":   16,     # earlier return — short outings
-        "hour_jitter":         2,
-        "drive_days_per_week": 4,     # 4 of the 7 sim days
+        "departure_hour_mean": 10,    # later commute
+        "return_hour_mean":   16,     # earlier return
+        "drive_days_per_week": 3,     # Tue, Wed, Thu specifically
+        "drives_on_weekend":  False,  # parked Fri and Sat too
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.87,
+        "target_soc":        0.87,    # Hoke 2026 Table 1
         "starting_soc":      0.80,
+        "charge_threshold":  0.0,
     },
     THRESHOLD_CHARGER: {
-        # Drives daily but charges only when needed.
+        # The real "Threshold" archetype: plugs in only when SoC falls below
+        # charge_threshold, charges hard to target_soc, then unplugs and
+        # waits.  This makes it visibly distinct from Daily Charger.
         "daily_km_mean": 38.0,
-        "daily_km_std":  6.0,
         "departure_hour_mean": 8,
         "return_hour_mean":   18,
-        "hour_jitter":         1,
-        "drive_days_per_week": 7,
+        "drive_days_per_week": 5,     # workdays only (Sun-Thu)
+        "drives_on_weekend":  False,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.85,
-        "starting_soc":      0.70,
+        "target_soc":        0.95,    # charges fully when it does charge
+        "starting_soc":      0.50,    # starts the week mid-discharge
+        "charge_threshold":  0.30,    # plugs in only when SoC drops below 0.30
     },
 }
+
+# Israeli weekday convention: 0=Sunday ... 4=Thursday, 5=Friday, 6=Saturday.
+WEEKEND_DAYS = (5, 6)
+WEEKEND_KM_FACTOR = 0.5       # weekend trip kms = weekday × this
+WEEKEND_DEPARTURE_HOUR = 11   # midday weekend trip start
+WEEKEND_RETURN_HOUR = 17      # midday weekend trip end (before peak)
+
+# Randomness parameters agreed at W8:
+COMMUTE_JITTER_STD_HOURS = 0.5     # Brinkel 2020, Gandhi 2021
+DAILY_KM_LOG_SIGMA = 0.6           # Liao 2025 (Chinese sample, transferred)
 
 
 # -----------------------------------------------------------------------------
@@ -165,14 +168,19 @@ class EVAgentState:
     # --- Daily driving (per-instance, derived from typology + jitter) ---
     daily_km_today: float = 40.0
     daily_km_mean: float = 40.0
-    daily_km_std: float = 6.0
     drives_today: bool = True
     drive_days_per_week: int = 7
+    drives_on_weekend: bool = True
+    # Today's actual commute hours (may differ from weekday on weekends)
     departure_hour: int = 8
     return_hour: int = 18
+    # Agent's baseline weekday commute hours, set at init and reused
+    weekday_departure_hour: int = 8
+    weekday_return_hour: int = 18
 
     # --- Charging targets ---
     target_soc: float = 0.89
+    charge_threshold: float = 0.0      # 0 = plug in any time; >0 = Threshold Charger behaviour
 
     # --- Behaviour ---
     range_anxiety_soc_floor: float = 0.30
@@ -223,19 +231,26 @@ class EVAgent:
             has_home_charger=profile["has_home_charger"],
             has_workplace_charger=profile.get("has_workplace_charger", False),
             target_soc=profile["target_soc"],
+            charge_threshold=profile["charge_threshold"],
             daily_km_mean=profile["daily_km_mean"],
-            daily_km_std=profile["daily_km_std"],
             drive_days_per_week=profile["drive_days_per_week"],
+            drives_on_weekend=profile["drives_on_weekend"],
             soc=profile["starting_soc"],
         )
 
-        # Per-agent commute jitter (±N hours, depending on typology)
-        jitter = profile["hour_jitter"]
-        self.state.departure_hour = profile["departure_hour_mean"] + self._rng.randint(-jitter, jitter)
-        self.state.return_hour = profile["return_hour_mean"] + self._rng.randint(-jitter, jitter)
+        # Per-agent commute jitter, Gaussian std 0.5h (Brinkel 2020, Gandhi 2021).
+        # Drawn once per agent at instantiation, then reused for every weekday.
+        d_jitter = round(self._rng.gauss(0.0, COMMUTE_JITTER_STD_HOURS))
+        r_jitter = round(self._rng.gauss(0.0, COMMUTE_JITTER_STD_HOURS))
+        self.state.weekday_departure_hour = profile["departure_hour_mean"] + d_jitter
+        self.state.weekday_return_hour = profile["return_hour_mean"] + r_jitter
         # Safety clip — make sure departure is before return
-        if self.state.return_hour <= self.state.departure_hour:
-            self.state.return_hour = self.state.departure_hour + 6
+        if self.state.weekday_return_hour <= self.state.weekday_departure_hour:
+            self.state.weekday_return_hour = self.state.weekday_departure_hour + 6
+        # Today's commute hours start as the weekday values; _start_new_day
+        # overrides them on weekends.
+        self.state.departure_hour = self.state.weekday_departure_hour
+        self.state.return_hour = self.state.weekday_return_hour
 
         # V2G setup — only relevant for the V2G counterfactual.  Public Chargers
         # cannot V2G in W7 because they have no home charger.
@@ -255,22 +270,47 @@ class EVAgent:
     # New-day sampling
     # ------------------------------------------------------------------
     def _start_new_day(self, day_of_week: int) -> None:
-        """Decide whether the agent drives today and how far.
+        """Decide whether the agent drives today, when, and how far.
 
         Called at the start of each simulated day (hour_of_day == 0).
+
+        Israeli weekday convention: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu,
+        5=Fri, 6=Sat.  Working days are Sun-Thu (0-4).
         """
-        # Drives today?  For typologies that drive every day, always True.
-        # For BEV 2nd Vehicle (4 days/week), drive on Mon-Thu only (days 0-3).
-        if self.state.drive_days_per_week >= 7:
+        is_weekend = day_of_week in WEEKEND_DAYS
+
+        # Decide whether to drive today.
+        if self.typology == BEV_2ND_VEHICLE:
+            # David W8: drives only Tue, Wed, Thu.
+            self.state.drives_today = day_of_week in (2, 3, 4)
+        elif is_weekend:
+            self.state.drives_today = self.state.drives_on_weekend
+        elif self.state.drive_days_per_week >= 7:
             self.state.drives_today = True
         else:
-            # Drive on the first `drive_days_per_week` days of the week
-            self.state.drives_today = (day_of_week < self.state.drive_days_per_week)
+            # Workday-only typology (e.g., Threshold Charger): drive Sun-Thu.
+            self.state.drives_today = day_of_week < 5
 
-        # Sample today's km
+        # Set today's commute hours.  On weekends, use a shorter midday trip;
+        # on weekdays, use the agent's personal weekday hours set at init.
+        if self.state.drives_today and is_weekend:
+            self.state.departure_hour = WEEKEND_DEPARTURE_HOUR
+            self.state.return_hour = WEEKEND_RETURN_HOUR
+        else:
+            self.state.departure_hour = self.state.weekday_departure_hour
+            self.state.return_hour = self.state.weekday_return_hour
+
+        # Sample today's km from a log-normal distribution (Liao 2025).
+        # The log-space sigma is 0.6.  Real-space mean is daily_km_mean.
+        # For log-normal with desired arithmetic mean M and log-space sigma s,
+        # mu = ln(M) - s**2 / 2.
         if self.state.drives_today:
-            km = self._rng.gauss(self.state.daily_km_mean, self.state.daily_km_std)
-            self.state.daily_km_today = max(0.0, km)  # clip negatives
+            sigma = DAILY_KM_LOG_SIGMA
+            mu = math.log(self.state.daily_km_mean) - 0.5 * sigma * sigma
+            km = self._rng.lognormvariate(mu, sigma)
+            if is_weekend:
+                km *= WEEKEND_KM_FACTOR
+            self.state.daily_km_today = km
         else:
             self.state.daily_km_today = 0.0
 
@@ -287,7 +327,7 @@ class EVAgent:
             self._start_new_day(day_of_week)
 
         # Step A — mobility
-        action_mobility = self._step_mobility(hour_of_day)
+        action_mobility = self._step_mobility(hour_of_day, day_of_week)
 
         # Step B — charging/discharging decision (only if not driving)
         if action_mobility == "DRIVING":
@@ -297,6 +337,7 @@ class EVAgent:
         else:
             action_charge, energy_kwh, cost = self._step_charging_decision(
                 hour_of_day=hour_of_day,
+                day_of_week=day_of_week,
                 price_per_kwh=current_price_per_kwh,
             )
 
@@ -321,7 +362,7 @@ class EVAgent:
     # ------------------------------------------------------------------
     # Step A — mobility
     # ------------------------------------------------------------------
-    def _step_mobility(self, hour_of_day: int) -> str:
+    def _step_mobility(self, hour_of_day: int, day_of_week: int) -> str:
         """Move the car.  Returns one of: 'DRIVING', 'AT_HOME', 'AT_WORK'."""
         if self._is_driving_now(hour_of_day):
             self.state.plugged_in = False
@@ -332,14 +373,45 @@ class EVAgent:
             self.state.soc = max(0.0, self.state.soc - soc_drop)
             return "DRIVING"
 
-        if hour_of_day >= self.state.return_hour or hour_of_day < self.state.departure_hour:
+        is_weekend = day_of_week in WEEKEND_DAYS
+
+        # Agent is at home if (a) outside commute hours, or (b) not driving today.
+        at_home = (
+            (not self.state.drives_today)
+            or hour_of_day >= self.state.return_hour
+            or hour_of_day < self.state.departure_hour
+        )
+        if at_home:
             self.state.location = "home"
-            self.state.plugged_in = self.state.has_home_charger
+            self.state.plugged_in = self._decide_home_plug_in()
             return "AT_HOME"
 
+        # Otherwise the agent is at work (only meaningful for Public Charger).
         self.state.location = "work"
         self.state.plugged_in = self.state.has_workplace_charger
         return "AT_WORK"
+
+    def _decide_home_plug_in(self) -> bool:
+        """Plug-in decision while at home.
+
+        Daily Charger and BEV 2nd Vehicle: plug in whenever home (so long as
+        the household has a home charger).  Threshold Charger: plug in only
+        once SoC has fallen below charge_threshold, then stay plugged in
+        until target_soc is reached, then unplug.  This gives the
+        characteristic "long stretches unplugged, short bursts of full
+        charging" pattern that distinguishes Threshold Charger from the
+        others.
+        """
+        if not self.state.has_home_charger:
+            return False
+        if self.state.charge_threshold <= 0.0:
+            return True
+        # Threshold behaviour with hysteresis.
+        if self.state.plugged_in:
+            # Already in a charging session — stay plugged in until full.
+            return self.state.soc < self.state.target_soc
+        # Not currently plugged in — only start a new session if SoC is low.
+        return self.state.soc < self.state.charge_threshold
 
     def _is_driving_now(self, hour_of_day: int) -> bool:
         """True for the single outbound hour and single inbound hour each day,
@@ -355,6 +427,7 @@ class EVAgent:
     def _step_charging_decision(
         self,
         hour_of_day: int,
+        day_of_week: int,
         price_per_kwh: float,
     ) -> tuple[str, float, float]:
         if not self.state.plugged_in:
@@ -365,7 +438,7 @@ class EVAgent:
         if self.counterfactual == COUNTERFACTUAL_V1G:
             return self._rule_v1g(price_per_kwh)
         if self.counterfactual == COUNTERFACTUAL_V2G:
-            return self._rule_v2g(hour_of_day, price_per_kwh)
+            return self._rule_v2g(hour_of_day, day_of_week, price_per_kwh)
         raise ValueError(f"unknown counterfactual {self.counterfactual!r}")
 
     def _rule_v0(self, price_per_kwh: float) -> tuple[str, float, float]:
@@ -383,6 +456,7 @@ class EVAgent:
     def _rule_v2g(
         self,
         hour_of_day: int,
+        day_of_week: int,
         price_per_kwh: float,
     ) -> tuple[str, float, float]:
         # Priority 1 — emergency
@@ -391,7 +465,7 @@ class EVAgent:
 
         # Priority 2 — V2G discharge
         wants_to_sell = (
-            aggregator_signals_discharge(hour_of_day)
+            aggregator_signals_discharge(hour_of_day, day_of_week)
             and self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR

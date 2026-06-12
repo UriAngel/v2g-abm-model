@@ -1,23 +1,16 @@
-"""W7 demo runner — Sunday Batch 3 version.
+"""W8 demo runner — Batch A version.
 
-Now runs a fleet of 5 EVs per typology = 20 cars total, each with its
-own random commute jitter and daily-km variation. Each car is simulated
-under three counterfactuals (V0, V1G, V2G), so there are 60 individual
-simulations behind one demo run.
+W8 Batch A changes from W7 Sunday version:
+  * Fleet composition now uses Hoke 2026 California shares instead of
+    uniform 5 per typology: Daily Charger 5, Public Charger 4,
+    BEV 2nd Vehicle 3, Threshold Charger 8 (total 20 cars, ratios
+    26 / 19 / 17 / 38 percent rounded for n=20).
+  * Pricing is now weekday-aware: peak rate applies only Sun-Thu.
+  * BEV 2nd Vehicle drives Tue-Wed-Thu only (David W8 meeting).
+  * Threshold Charger has real threshold plug-in behaviour.
 
 For each (typology, counterfactual) combination we write one CSV file
-containing all 5 cars' hourly logs (840 rows per file, with an agent_id
-column). 12 files total.
-
-Usage
------
-    python -m src.run_demo
-
-Outputs
--------
-    outputs/<typology>_<cf>.csv       — 12 files, 840 rows each
-    Printed summary table grouped by typology, showing mean ± std across
-    the 5 cars in each (typology, counterfactual) cell.
+containing all that typology's cars' hourly logs.  12 files total.
 """
 
 import csv
@@ -27,6 +20,10 @@ from pathlib import Path
 from src.agents.ev_agent import (
     EVAgent,
     ALL_TYPOLOGIES,
+    DAILY_CHARGER,
+    PUBLIC_CHARGER,
+    BEV_2ND_VEHICLE,
+    THRESHOLD_CHARGER,
     COUNTERFACTUAL_V0,
     COUNTERFACTUAL_V1G,
     COUNTERFACTUAL_V2G,
@@ -35,7 +32,18 @@ from src.pricing import price_at_hour
 
 
 HOURS_IN_WEEK = 168
-CARS_PER_TYPOLOGY = 5     # bump up for richer fleet-level statistics
+
+# California typology shares from Hoke 2026 Appendix B, rounded to fit a
+# 20-car fleet for the W8 demo.  Underlying percentages: Daily 26, Public 19,
+# BEV 2nd 17, Threshold 38.
+CARS_PER_TYPOLOGY = {
+    DAILY_CHARGER:    5,   # 25 % of fleet
+    PUBLIC_CHARGER:   4,   # 20 %
+    BEV_2ND_VEHICLE:  3,   # 15 %
+    THRESHOLD_CHARGER: 8,  # 40 %
+}
+FLEET_SIZE = sum(CARS_PER_TYPOLOGY.values())  # 20
+
 OUTPUTS_DIR = Path(__file__).resolve().parent.parent / "outputs"
 COUNTERFACTUALS = (COUNTERFACTUAL_V0, COUNTERFACTUAL_V1G, COUNTERFACTUAL_V2G)
 
@@ -48,7 +56,9 @@ def run_one_car(typology: str, counterfactual: str, agent_id: int) -> EVAgent:
     """Simulate one car for one week."""
     agent = EVAgent(agent_id=agent_id, typology=typology, counterfactual=counterfactual)
     for hour in range(HOURS_IN_WEEK):
-        price = price_at_hour(hour % 24)
+        hour_of_day = hour % 24
+        day_of_week = (hour // 24) % 7
+        price = price_at_hour(hour_of_day, day_of_week)
         agent.step(current_hour=hour, current_price_per_kwh=price)
     return agent
 
@@ -83,15 +93,18 @@ def mean_std(values: list[float]) -> tuple[float, float]:
 
 
 def main() -> None:
-    print(f"=== V2G ABM — W7 Sunday demo (4 typologies × {CARS_PER_TYPOLOGY} cars × 3 CFs × 1 week) ===\n")
-    print("Prices: TAOZ summer (NIS/kWh)  —  off-peak 0.53, shoulder 0.85, peak 1.69\n")
+    composition = ", ".join(f"{n} {t}" for t, n in CARS_PER_TYPOLOGY.items())
+    print(f"=== V2G ABM — W8 Batch A demo ({FLEET_SIZE}-car fleet × 3 CFs × 1 week) ===")
+    print(f"Fleet composition (Hoke 2026 California shares): {composition}")
+    print("Prices: TAOZ summer (NIS/kWh)  —  off-peak 0.53, shoulder 0.85, peak 1.69 (Sun-Thu only)\n")
 
     # Run everything and collect summaries
     summaries: dict[tuple[str, str], list[dict]] = {}
     for t_idx, typology in enumerate(ALL_TYPOLOGIES):
+        n_cars = CARS_PER_TYPOLOGY[typology]
         for cf in COUNTERFACTUALS:
             cars = []
-            for car_idx in range(CARS_PER_TYPOLOGY):
+            for car_idx in range(n_cars):
                 # Unique agent_id per (typology, car_idx); same id reused across
                 # the 3 counterfactuals so each "individual" lives 3 parallel lives.
                 agent_id = t_idx * 1000 + car_idx + 1
@@ -101,8 +114,8 @@ def main() -> None:
             write_cars_to_csv(cars, csv_path)
             summaries[(typology, cf)] = [summarise_one_car(c) for c in cars]
 
-    # Print summary: mean ± std across the 5 cars in each cell
-    header = f"{'typology':>18} | {'CF':>4} | {'kWh bought':>20} | {'kWh sold':>18} | {'net ₪/wk':>20} | {'annual ₪':>14}"
+    # Print summary: mean ± std across the cars in each cell
+    header = f"{'typology':>18} | {'CF':>4} | {'kWh bought':>20} | {'kWh sold':>18} | {'net NIS/wk':>20} | {'annual NIS':>14}"
     print(header)
     print("-" * len(header))
     for typology in ALL_TYPOLOGIES:
@@ -114,19 +127,20 @@ def main() -> None:
             am = nm * 52
             print(
                 f"{typology:>18} | {cf:>4}"
-                f" | {bm:>9.1f} ± {bs:>6.1f}"
-                f" | {sm:>8.1f} ± {ss:>5.1f}"
-                f" | {nm:>9.2f} ± {ns:>6.2f}"
+                f" | {bm:>9.1f} +/- {bs:>5.1f}"
+                f" | {sm:>8.1f} +/- {ss:>4.1f}"
+                f" | {nm:>9.2f} +/- {ns:>5.2f}"
                 f" | {am:>14.0f}"
             )
         print()
 
     print("Notes:")
-    print(f" - {CARS_PER_TYPOLOGY} cars per typology, each with its own commute jitter and daily-km noise.")
-    print(" - 'net ₪/wk' < 0 means the owner earned money on net.")
-    print(" - 'annual ₪' = mean weekly × 52.")
-    print(" - Public Charger uses workplace charging only (no overnight V2G possible).")
-    print(" - BEV 2nd Vehicle drives only Mon-Thu (4 of 7 days).")
+    print(" - Negative net cost means the owner earned money on net.")
+    print(" - 'annual' uses mean weekly cost x 52, ignoring seasonal variation.")
+    print(" - Public Charger uses workplace charging only (no overnight V2G).")
+    print(" - BEV 2nd Vehicle drives only Tue-Wed-Thu (David W8 meeting).")
+    print(" - Threshold Charger plugs in only when SoC below 0.30, then charges to 0.95.")
+    print(" - Friday and Saturday treated as Israeli weekend (no peak rate).")
 
 
 if __name__ == "__main__":
