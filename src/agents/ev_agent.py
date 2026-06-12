@@ -23,7 +23,10 @@ import random
 from dataclasses import dataclass
 
 from src.pricing import price_at_hour, CHEAP_THRESHOLD_FOR_V1G
-from src.aggregator_stub import aggregator_signals_discharge
+from src.aggregator_stub import (
+    aggregator_signals_discharge,
+    aggregator_accepts_retailer,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -122,6 +125,33 @@ DAILY_KM_LOG_SIGMA = 0.6           # Liao 2025 (Chinese sample, transferred)
 
 
 # -----------------------------------------------------------------------------
+# Israeli residential retailers — market shares after the July 2024 reform
+# -----------------------------------------------------------------------------
+# IEC dominates with about 70 percent of residential supply; the rest is
+# divided across eight active alternative suppliers.  Source: PUA 2024
+# Electricity Authority annual report, post-reform figures.
+
+RETAILER_MARKET_SHARES = {
+    "IEC":            0.70,
+    "Electra Power":  0.05,
+    "Pazgaz":         0.05,
+    "Cellcom":        0.04,
+    "Bezeq":          0.04,
+    "Hot":            0.03,
+    "Partner":        0.03,
+    "Mashav":         0.03,
+    "Amisragas":      0.03,
+}
+
+
+def sample_retailer(rng: random.Random) -> str:
+    """Draw a retailer name from RETAILER_MARKET_SHARES."""
+    names = list(RETAILER_MARKET_SHARES.keys())
+    weights = list(RETAILER_MARKET_SHARES.values())
+    return rng.choices(names, weights=weights, k=1)[0]
+
+
+# -----------------------------------------------------------------------------
 # Counterfactuals (rules §0)
 # -----------------------------------------------------------------------------
 
@@ -186,6 +216,9 @@ class EVAgentState:
     range_anxiety_soc_floor: float = 0.30
     osp: float = 0.0
     v2g_opted_in: bool = False
+
+    # --- Retail relationship (W8 Batch B) ---
+    retailer: str = "IEC"
 
 
 # -----------------------------------------------------------------------------
@@ -259,6 +292,11 @@ class EVAgent:
             self.state.v2g_opted_in = True
             self.state.osp = 1.00
             self.state.max_discharge_power_kw = 9.6
+
+        # Sample this agent's electricity retailer from realistic Israeli
+        # market shares (used by the optional aggregator-retailer gate
+        # in `_rule_v2g`).
+        self.state.retailer = sample_retailer(self._rng)
 
         # Sample today's driving for day 0
         self._start_new_day(day_of_week=0)
@@ -463,13 +501,22 @@ class EVAgent:
         if self.state.soc < self.state.range_anxiety_soc_floor:
             return self._do_charge(price_per_kwh)
 
-        # Priority 2 — V2G discharge
+        # Priority 2 — V2G discharge.  Six-condition gate:
+        #   1) aggregator signals discharge this hour
+        #   2) agent has opted in
+        #   3) agent is V2G capable (has home charger + bidirectional hardware)
+        #   4) SoC is above the contractual V2G floor
+        #   5) price is at or above the agent's OSP
+        #   6) (W8 Batch B) agent's retailer matches the aggregator's
+        #      contracted retailer.  Disabled by default; toggled with
+        #      RETAILER_GATE_ENABLED in aggregator_stub.py.
         wants_to_sell = (
             aggregator_signals_discharge(hour_of_day, day_of_week)
             and self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR
             and price_per_kwh >= self.state.osp
+            and aggregator_accepts_retailer(self.state.retailer)
         )
         if wants_to_sell:
             return self._do_discharge(price_per_kwh)

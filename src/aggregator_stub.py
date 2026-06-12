@@ -1,11 +1,15 @@
 """Aggregator stub.
 
-W8 update: now weekday-aware.  The TAOZ peak window applies only Sunday
-through Thursday, so the aggregator only signals discharge on those days.
-On Friday and Saturday the peak rate disappears and there is no point in
-discharging for arbitrage.
+Discharge signal mirrors the TAOZ peak window (17:00-23:00) every day.
+The day_of_week argument is kept in the signature for forward
+compatibility with future weekday-sensitive aggregator logic, but the
+standard residential TAOZ peak applies the same way every day.
 
-Israeli weekday convention: 0=Sunday ... 4=Thursday, 5=Friday, 6=Saturday.
+W8 Batch B adds the optional aggregator-retailer link.  When the gate is
+enabled, the aggregator will only accept V2G transactions from EVs whose
+household electricity retailer matches the aggregator's contracted
+retailer.  When the gate is disabled, the aggregator is retailer-agnostic
+and any household can participate.
 """
 
 
@@ -13,7 +17,22 @@ Israeli weekday convention: 0=Sunday ... 4=Thursday, 5=Friday, 6=Saturday.
 PEAK_DISCHARGE_START_HOUR = 17
 PEAK_DISCHARGE_END_HOUR = 23   # exclusive — last discharge hour is 22
 
-WEEKEND_DAYS = (5, 6)  # Friday and Saturday
+
+# -----------------------------------------------------------------------------
+# Aggregator-retailer link (W8 Batch B)
+# -----------------------------------------------------------------------------
+# AGGREGATOR_CONTRACTED_RETAILER: the retailer brand that the V2G aggregator
+# has a contract with.  In David's baseline design, only customers of this
+# retailer can participate in V2G.
+#
+# RETAILER_GATE_ENABLED: master flag.
+#   True  = tied model (David's baseline).
+#           Only customers of AGGREGATOR_CONTRACTED_RETAILER can V2G.
+#   False = independent-aggregator model.
+#           Any household can participate regardless of retailer.
+
+AGGREGATOR_CONTRACTED_RETAILER = "IEC"
+RETAILER_GATE_ENABLED = True
 
 
 def aggregator_signals_discharge(hour_of_day: int, day_of_week: int = 0) -> bool:
@@ -24,13 +43,34 @@ def aggregator_signals_discharge(hour_of_day: int, day_of_week: int = 0) -> bool
     hour_of_day : int
         0-23.
     day_of_week : int
-        0=Sunday, 6=Saturday.  Defaults to Sunday for backward compatibility.
+        Currently unused.  Kept for forward compatibility.
 
     Returns
     -------
     bool
-        True only during the evening peak window on a TAOZ workday.
+        True during the evening peak window every day.
     """
-    if day_of_week in WEEKEND_DAYS:
-        return False
     return PEAK_DISCHARGE_START_HOUR <= hour_of_day < PEAK_DISCHARGE_END_HOUR
+
+
+def aggregator_accepts_retailer(agent_retailer: str) -> bool:
+    """Return True if the aggregator will accept this agent's V2G energy.
+
+    Always True when the retailer gate is disabled.  When the gate is
+    enabled, returns True only if the agent's retailer matches the
+    aggregator's contracted retailer.
+
+    Parameters
+    ----------
+    agent_retailer : str
+        The household's electricity retailer brand (e.g., "IEC",
+        "Electra Power").  Sampled at EVAgent construction from
+        RETAILER_MARKET_SHARES in ev_agent.py.
+
+    Returns
+    -------
+    bool
+    """
+    if not RETAILER_GATE_ENABLED:
+        return True
+    return agent_retailer == AGGREGATOR_CONTRACTED_RETAILER

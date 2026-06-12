@@ -28,6 +28,10 @@ from src.agents.ev_agent import (
     COUNTERFACTUAL_V1G,
     COUNTERFACTUAL_V2G,
 )
+from src.aggregator_stub import (
+    AGGREGATOR_CONTRACTED_RETAILER,
+    RETAILER_GATE_ENABLED,
+)
 from src.pricing import price_at_hour
 
 
@@ -94,9 +98,14 @@ def mean_std(values: list[float]) -> tuple[float, float]:
 
 def main() -> None:
     composition = ", ".join(f"{n} {t}" for t, n in CARS_PER_TYPOLOGY.items())
-    print(f"=== V2G ABM — W8 Batch A demo ({FLEET_SIZE}-car fleet × 3 CFs × 1 week) ===")
+    print(f"=== V2G ABM — W8 Batch B demo ({FLEET_SIZE}-car fleet x 3 CFs x 1 week) ===")
     print(f"Fleet composition (Hoke 2026 California shares): {composition}")
-    print("Prices: TAOZ summer (NIS/kWh)  —  off-peak 0.53, shoulder 0.85, peak 1.69 (Sun-Thu only)\n")
+    print("Prices: TAOZ summer (NIS/kWh)  off-peak 0.53, shoulder 0.85, peak 1.69")
+    if RETAILER_GATE_ENABLED:
+        print(f"Aggregator-retailer gate: ENABLED.  Only {AGGREGATOR_CONTRACTED_RETAILER} customers can V2G.")
+    else:
+        print("Aggregator-retailer gate: DISABLED.  All households can V2G regardless of retailer.")
+    print()
 
     # Run everything and collect summaries
     summaries: dict[tuple[str, str], list[dict]] = {}
@@ -140,7 +149,8 @@ def main() -> None:
     print(" - Public Charger uses workplace charging only (no overnight V2G).")
     print(" - BEV 2nd Vehicle drives only Tue-Wed-Thu (David W8 meeting).")
     print(" - Threshold Charger plugs in only when SoC below 0.30, then charges to 0.95.")
-    print(" - Friday and Saturday treated as Israeli weekend (no peak rate).")
+    print(" - Friday and Saturday treated as Israeli weekend for driving only (midday trips, half km).")
+    print(" - TAOZ peak rate 17-23 applies every day in the standard residential schedule.")
 
 
 if __name__ == "__main__":
