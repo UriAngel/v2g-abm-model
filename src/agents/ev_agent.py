@@ -37,6 +37,10 @@ from src.battery_aging import (
     cycle_aging_this_hour,
     aging_cost_per_kwh_discharged,
 )
+from src.vehicle_catalog import (
+    VEHICLE_CATALOG,
+    sample_vehicle,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -247,11 +251,12 @@ V2G_SOC_FLOOR = 0.50         # §3.6  contractual minimum SoC for V2G discharge
 class EVAgentState:
     """All persistent state for one EV agent, updated every hour."""
 
-    # --- Battery ---
+    # --- Battery (Batch E: chemistry from sampled vehicle) ---
     soc: float = 0.80
     soh: float = 1.00
     battery_kwh_usable: float = 60.0
     chemistry: str = "NMC"
+    vehicle_model: str = "Tesla Model Y NMC"   # set at agent init from country market shares
     # W8 Batch D: aging accounting
     cumulative_throughput_kwh: float = 0.0   # |charge| + |discharge| over the run
     cumulative_calendar_aging: float = 0.0   # SoH lost to calendar aging
@@ -326,7 +331,7 @@ class EVAgent:
         One of "V0", "V1G", "V2G".
     """
 
-    def __init__(self, agent_id: int, typology: str, counterfactual: str):
+    def __init__(self, agent_id: int, typology: str, counterfactual: str, country: str = "Israel"):
         # Identity + validation
         assert typology in ALL_TYPOLOGIES, f"unknown typology {typology!r}"
         assert counterfactual in (COUNTERFACTUAL_V0,
@@ -336,6 +341,7 @@ class EVAgent:
         self.id = agent_id
         self.typology = typology
         self.counterfactual = counterfactual
+        self.country = country
 
         # Per-agent random number generator, seeded by id+typology.  This makes
         # the jitter and daily-km noise reproducible: rerun the demo with the
@@ -345,8 +351,17 @@ class EVAgent:
 
         # Pull the typology profile and apply it to the agent's state
         profile = TYPOLOGY_PROFILES[typology]
+
+        # W8 Batch E: sample this agent's vehicle from the country's
+        # market-share distribution.  Vehicle dictates battery capacity
+        # and chemistry, overriding the typology default of 60 kWh.
+        vehicle_model = sample_vehicle(self._rng, country=country)
+        vehicle_spec = VEHICLE_CATALOG[vehicle_model]
+
         self.state = EVAgentState(
-            battery_kwh_usable=profile["battery_kwh_usable"],
+            battery_kwh_usable=vehicle_spec["battery_kwh"],
+            chemistry=vehicle_spec["chemistry"],
+            vehicle_model=vehicle_model,
             has_home_charger=profile["has_home_charger"],
             has_workplace_charger=profile.get("has_workplace_charger", False),
             target_soc=profile["target_soc"],
@@ -407,9 +422,10 @@ class EVAgent:
             else:
                 self.state.v2g_opted_in = True
                 base_osp = SEM_DISABLED_FLAT_OSP
-            # W8 Batch D: add per-kWh aging cost on top of the SEM-derived OSP.
-            # The agent demands a higher price to compensate for battery wear.
-            self.state.osp = base_osp + aging_cost_per_kwh_discharged()
+            # W8 Batch D + E: add per-kWh aging cost (chemistry-dependent)
+            # on top of the SEM-derived OSP.  LFP and NMC give different
+            # aging costs because of cycle wear and replacement cost.
+            self.state.osp = base_osp + aging_cost_per_kwh_discharged(self.state.chemistry)
             self.state.max_discharge_power_kw = 9.6
 
         # Sample this agent's electricity retailer from realistic Israeli
@@ -500,11 +516,9 @@ class EVAgent:
                 price_per_kwh=current_price_per_kwh,
             )
 
-        # Step C — battery health (W8 Batch D, Gasper-style aging).
-        # Calendar aging every hour, regardless of action.  Cycle aging
-        # proportional to throughput on charge or discharge hours.
+        # Step C — battery health (Batch D + E, chemistry-aware).
         cal_loss = calendar_aging_this_hour(self.state.soc)
-        cyc_loss = cycle_aging_this_hour(energy_kwh)
+        cyc_loss = cycle_aging_this_hour(energy_kwh, self.state.chemistry)
         self.state.cumulative_calendar_aging += cal_loss
         self.state.cumulative_cycle_aging   += cyc_loss
         self.state.cumulative_throughput_kwh += abs(energy_kwh)

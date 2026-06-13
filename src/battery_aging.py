@@ -33,16 +33,46 @@ _HOURS_10Y = 10 * 365 * 24   # 87,600
 # Calibrated so 87,600 hours of pure rest gives 20% loss.
 CALENDAR_AGING_PER_HOUR_BASELINE = 0.20 / _HOURS_10Y     # ~2.28e-6
 
-# Cycle aging per kWh throughput.  Calibrated against a typical V2G
-# participant in Wong et al. 2026: ~7,500 kWh of extra V2G throughput over
-# 10 years -> 0.7% extra SoH loss.
-CYCLE_AGING_PER_KWH_THROUGHPUT = 0.007 / 7_500           # ~9.3e-7
+# Cycle aging per kWh throughput, NMC baseline.  Calibrated against a
+# typical V2G participant in Wong et al. 2026: ~7,500 kWh of extra V2G
+# throughput over 10 years -> 0.7% extra SoH loss for NMC|Gr.
+CYCLE_AGING_PER_KWH_THROUGHPUT_NMC = 0.007 / 7_500       # ~9.3e-7
 
-# NMC pack 2024 wholesale price ~$130/kWh.  Converted at ~3.7 NIS/USD.
-BATTERY_REPLACEMENT_COST_NIS_PER_KWH = 480.0
+# LFP|Gr design shows higher sensitivity to cycle aging in Gasper 2023
+# unified model output (Wong 2026 footnote: "the battery with the highest
+# sensitivity to cycle aging (LFP|Gr)").  Multiplier roughly 3x NMC under
+# the same V2G strategy.
+CYCLE_AGING_LFP_MULTIPLIER = 3.0
+CYCLE_AGING_PER_KWH_THROUGHPUT_LFP = CYCLE_AGING_PER_KWH_THROUGHPUT_NMC * CYCLE_AGING_LFP_MULTIPLIER
+
+# Calendar aging is roughly equivalent between chemistries at 25°C
+# (Gasper 2023, NMC vs LFP).  Use the same baseline.
+
+# Battery replacement cost (NIS/kWh).  Differs by chemistry: LFP is
+# cheaper because no cobalt or nickel; NMC is more expensive.
+BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC = 480.0   # NMC pack 2024 ~$130/kWh
+BATTERY_REPLACEMENT_COST_NIS_PER_KWH_LFP = 350.0   # LFP pack 2024 ~$95/kWh
+
+# Backwards-compatible name (used by older code; defaults to NMC).
+BATTERY_REPLACEMENT_COST_NIS_PER_KWH = BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC
+CYCLE_AGING_PER_KWH_THROUGHPUT = CYCLE_AGING_PER_KWH_THROUGHPUT_NMC
 
 # End-of-life convention: EV batteries are commonly retired at SoH = 0.80.
 EOL_SOH = 0.80
+
+
+def cycle_aging_coefficient(chemistry: str) -> float:
+    """Per-kWh cycle aging coefficient for the chemistry."""
+    if chemistry == "LFP":
+        return CYCLE_AGING_PER_KWH_THROUGHPUT_LFP
+    return CYCLE_AGING_PER_KWH_THROUGHPUT_NMC
+
+
+def battery_replacement_cost(chemistry: str) -> float:
+    """Per-kWh battery replacement cost (NIS) for the chemistry."""
+    if chemistry == "LFP":
+        return BATTERY_REPLACEMENT_COST_NIS_PER_KWH_LFP
+    return BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC
 
 
 def calendar_aging_this_hour(soc: float) -> float:
@@ -56,24 +86,17 @@ def calendar_aging_this_hour(soc: float) -> float:
     return CALENDAR_AGING_PER_HOUR_BASELINE * multiplier
 
 
-def cycle_aging_this_hour(kwh_throughput: float) -> float:
-    """SoH loss from cycling, given the magnitude of throughput this hour.
-
-    Throughput is the energy moved into or out of the battery (kWh).
-    Aging scales linearly with throughput, matching the Gasper 2023
-    unified model in the low-throughput regime.
-    """
-    return CYCLE_AGING_PER_KWH_THROUGHPUT * abs(kwh_throughput)
+def cycle_aging_this_hour(kwh_throughput: float, chemistry: str = "NMC") -> float:
+    """SoH loss from cycling, given throughput and chemistry."""
+    return cycle_aging_coefficient(chemistry) * abs(kwh_throughput)
 
 
-def aging_cost_per_kwh_discharged() -> float:
+def aging_cost_per_kwh_discharged(chemistry: str = "NMC") -> float:
     """Aging cost (NIS) imputed to one kWh discharged in V2G operation.
 
-    This number is added to each agent's OSP so the agent demands a
-    higher price before agreeing to discharge.  It reflects the value
-    of the battery wear induced by each discharged kWh.
+    Differs by chemistry: LFP has higher cycle wear per kWh but lower
+    replacement cost; NMC is the opposite.  Net per-kWh aging cost ends
+    up roughly in the same ballpark for both, but LFP edges slightly
+    higher because of the cycle-wear multiplier.
     """
-    # SoH loss per kWh × battery cost per kWh.
-    # Useable battery is the SoH-effective portion, so cost is over the
-    # full nameplate kWh.
-    return CYCLE_AGING_PER_KWH_THROUGHPUT * BATTERY_REPLACEMENT_COST_NIS_PER_KWH
+    return cycle_aging_coefficient(chemistry) * battery_replacement_cost(chemistry)
