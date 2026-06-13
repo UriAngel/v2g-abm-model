@@ -147,9 +147,10 @@ def main() -> None:
     print(" - Negative net cost means the owner earned money on net.")
     print(" - 'annual' uses mean weekly cost x 52, ignoring seasonal variation.")
     print(" - Public Charger uses workplace charging only (no overnight V2G).")
-    print(" - BEV 2nd Vehicle drives only Tue-Wed-Thu (David W8 meeting).")
-    print(" - Threshold Charger plugs in only when SoC below 0.30, then charges to 0.95.")
-    print(" - Friday and Saturday treated as Israeli weekend for driving only (midday trips, half km).")
+    print(" - All typologies drive probabilistically per Hoke 2026 Table 1 drive-days/wk.")
+    print(" - BEV 2nd Vehicle: 4.74 drive days/wk (Hoke).")
+    print(" - Threshold Charger: plugs in below 46.1% SoC, charges to 85% (both Hoke).")
+    print(" - Friday and Saturday treated as Israeli weekend for driving only.")
     print(" - TAOZ peak rate 17-23 applies every day in the standard residential schedule.")
 
 
