@@ -35,6 +35,28 @@ AGGREGATOR_CONTRACTED_RETAILER = "IEC"
 RETAILER_GATE_ENABLED = True
 
 
+# -----------------------------------------------------------------------------
+# Aggregator business model (W8 Batch F)
+# -----------------------------------------------------------------------------
+# Driver pays the bidirectional charger CAPEX up front, then receives a
+# share of every V2G discharge.  The aggregator keeps the residual share
+# and earns no other income (we ignore fixed overhead for now).
+#
+# Reference costs:
+#   Wallbox Quasar bidirectional unit  ~£5,500     (Sciurus 2021)
+#   Installation + DNO approval       ~£500
+#   Total charger CAPEX               ~£6,000  ~  28,000 NIS (at 4.7 NIS/GBP)
+#
+# Revenue split:
+#   Default 25% to aggregator, 75% to driver.  Matches the public
+#   reporting from Octopus Powerloop and other UK pilots (drivers
+#   typically earn 60-80% of V2G margin).
+
+CHARGER_CAPEX_NIS = 28_000.0
+AGGREGATOR_REVENUE_SHARE = 0.25
+DRIVER_REVENUE_SHARE = 1.0 - AGGREGATOR_REVENUE_SHARE
+
+
 def aggregator_signals_discharge(hour_of_day: int, day_of_week: int = 0) -> bool:
     """True if the aggregator wants V2G EVs to discharge right now.
 

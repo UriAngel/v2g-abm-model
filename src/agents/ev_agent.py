@@ -31,6 +31,8 @@ from src.pricing import (
 from src.aggregator_stub import (
     aggregator_signals_discharge,
     aggregator_accepts_retailer,
+    DRIVER_REVENUE_SHARE,
+    AGGREGATOR_REVENUE_SHARE,
 )
 from src.battery_aging import (
     calendar_aging_this_hour,
@@ -703,5 +705,10 @@ class EVAgent:
         soc_decrease = energy_out_of_battery_kwh / (self.state.battery_kwh_usable * self.state.soh)
         self.state.soc -= soc_decrease
 
-        revenue = energy_to_grid_kwh * price_per_kwh
-        return "DISCHARGE", -energy_to_grid_kwh, -revenue
+        # W8 Batch F: gross V2G revenue gets split.  The driver keeps a
+        # share (DRIVER_REVENUE_SHARE), the aggregator keeps the rest.
+        # The agent's cost_currency log records only the driver's portion,
+        # which is the meaningful number for the household's economics.
+        gross_revenue = energy_to_grid_kwh * price_per_kwh
+        driver_revenue = gross_revenue * DRIVER_REVENUE_SHARE
+        return "DISCHARGE", -energy_to_grid_kwh, -driver_revenue
