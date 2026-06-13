@@ -32,6 +32,11 @@ from src.aggregator_stub import (
     aggregator_signals_discharge,
     aggregator_accepts_retailer,
 )
+from src.battery_aging import (
+    calendar_aging_this_hour,
+    cycle_aging_this_hour,
+    aging_cost_per_kwh_discharged,
+)
 
 
 # -----------------------------------------------------------------------------
@@ -247,6 +252,10 @@ class EVAgentState:
     soh: float = 1.00
     battery_kwh_usable: float = 60.0
     chemistry: str = "NMC"
+    # W8 Batch D: aging accounting
+    cumulative_throughput_kwh: float = 0.0   # |charge| + |discharge| over the run
+    cumulative_calendar_aging: float = 0.0   # SoH lost to calendar aging
+    cumulative_cycle_aging: float = 0.0      # SoH lost to cycling
 
     # --- Power limits ---
     max_charge_power_kw: float = 7.0
@@ -394,10 +403,13 @@ class EVAgent:
             self.state.v2g_capable = True
             if SEM_ENABLED:
                 self.state.v2g_opted_in = self.state.intention_to_use_v2g > 0.0
-                self.state.osp = intention_to_osp(self.state.intention_to_use_v2g)
+                base_osp = intention_to_osp(self.state.intention_to_use_v2g)
             else:
                 self.state.v2g_opted_in = True
-                self.state.osp = SEM_DISABLED_FLAT_OSP
+                base_osp = SEM_DISABLED_FLAT_OSP
+            # W8 Batch D: add per-kWh aging cost on top of the SEM-derived OSP.
+            # The agent demands a higher price to compensate for battery wear.
+            self.state.osp = base_osp + aging_cost_per_kwh_discharged()
             self.state.max_discharge_power_kw = 9.6
 
         # Sample this agent's electricity retailer from realistic Israeli
@@ -488,7 +500,15 @@ class EVAgent:
                 price_per_kwh=current_price_per_kwh,
             )
 
-        # Step C — battery health (placeholder until W8)
+        # Step C — battery health (W8 Batch D, Gasper-style aging).
+        # Calendar aging every hour, regardless of action.  Cycle aging
+        # proportional to throughput on charge or discharge hours.
+        cal_loss = calendar_aging_this_hour(self.state.soc)
+        cyc_loss = cycle_aging_this_hour(energy_kwh)
+        self.state.cumulative_calendar_aging += cal_loss
+        self.state.cumulative_cycle_aging   += cyc_loss
+        self.state.cumulative_throughput_kwh += abs(energy_kwh)
+        self.state.soh = max(0.0, self.state.soh - cal_loss - cyc_loss)
 
         # Step D — log
         self.hourly_log.append({
@@ -500,6 +520,7 @@ class EVAgent:
             "location": self.state.location,
             "plugged_in": self.state.plugged_in,
             "soc": round(self.state.soc, 4),
+            "soh": round(self.state.soh, 6),
             "action": action_charge,
             "energy_kwh": round(energy_kwh, 4),
             "price_per_kwh": current_price_per_kwh,
