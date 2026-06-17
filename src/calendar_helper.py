@@ -4,11 +4,11 @@ Convert hour-of-year (0..8759) into (hour_of_day, day_of_week, month).
 
 Conventions:
   * The model year starts on Sunday 1 January.  This is a modelling
-    choice — Sunday is the first weekday of the Israeli workweek and
+    choice - Sunday is the first weekday of the Israeli workweek and
     starting on a Sunday means hour 0 is also the start of the working
     week.  Calendar drift across years is irrelevant because each agent
     is simulated for exactly one cycle.
-  * Non-leap year:  365 days × 24 = 8760 hours.
+  * Non-leap year:  365 days x 24 = 8760 hours.
   * Month boundaries follow the Gregorian calendar.
 """
 
