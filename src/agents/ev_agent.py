@@ -8,9 +8,10 @@ W8 Batch A changes (after Monday W7 supervisor meeting):
   * BEV 2nd Vehicle now drives only Tuesday, Wednesday, Thursday
     (per David W8 meeting), down from Mon-Thu.
   * Threshold Charger gets real threshold behaviour: it plugs in only when
-    SoC falls below charge_threshold (0.30), and stays plugged in until
-    target_soc (0.95) is reached. Daily Charger by contrast plugs in
-    whenever the vehicle is at home, regardless of current SoC.
+    SoC falls below charge_threshold (0.461, Wong 2026 Table 1 "Mean SoC
+    at plug-in"), and stays plugged in until target_soc (0.85, Wong Table
+    1 "Mean SoC after charge") is reached. Daily Charger by contrast plugs
+    in whenever the vehicle is at home, regardless of current SoC.
   * Day-of-week is now passed to pricing and aggregator so peak rates and
     discharge signals apply only Sunday through Thursday (TAOZ summer).
 
@@ -25,7 +26,7 @@ from dataclasses import dataclass
 from src.pricing import (
     price_at_hour,
     CHEAP_THRESHOLD_FOR_V1G,
-    PRICE_SHOULDER,
+    PRICE_OFFPEAK,
     PRICE_PEAK,
 )
 from src.aggregator_stub import (
@@ -189,16 +190,21 @@ def compute_intention(trust: float, attitude: float, subjective_norm: float) -> 
 
 def intention_to_osp(intention: float) -> float:
     """Map a continuous Intention score to a per-agent OSP, bounded by the
-    TAOZ shoulder and peak rates.
+    residential TAOZ off-peak and peak rates.
 
     Uses the logistic transform so that very high Intention drives OSP to
-    the shoulder rate (willing to sell at modest prices) and very low
-    Intention pushes OSP toward the peak rate (only sells when prices are
-    high).  Bounds come from IEC TAOZ summer schedule.
+    the off-peak rate (willing to discharge for as little as the retail
+    off-peak rate) and very low Intention pushes OSP toward the peak rate
+    (only discharges when the prevailing price equals retail peak).
+    Bounds come from the PUA residential TAOZ schedule.  The W7-W8 model
+    used the shoulder rate as the lower bound; from W9 the residential
+    schedule has no shoulder band, so the off-peak rate becomes the
+    natural floor.  The per-agent battery aging cost is added on top of
+    this OSP in the V2G discharge gate (Section 3.8 of Chapter 3).
     """
     sigmoid = 1.0 / (1.0 + math.exp(-intention))
     # sigmoid in (0, 1).  Map so that high intention -> low OSP.
-    return PRICE_PEAK - (PRICE_PEAK - PRICE_SHOULDER) * sigmoid
+    return PRICE_PEAK - (PRICE_PEAK - PRICE_OFFPEAK) * sigmoid
 
 
 # -----------------------------------------------------------------------------
@@ -243,6 +249,18 @@ COUNTERFACTUAL_V2G = "V2G"   # active: V1G plus selling back to grid
 
 CONSUMPTION_KWH_PER_KM = 0.18
 V2G_SOC_FLOOR = 0.50         # §3.6  contractual minimum SoC for V2G discharge
+
+# -----------------------------------------------------------------------------
+# V1G departure-aware top-up rule (Section 3.7, W9.C)
+# -----------------------------------------------------------------------------
+# During the long overnight parked period the V1G agent targets a reduced
+# state of charge (V1G_OVERNIGHT_TARGET_SOC) to slow calendar aging.  In the
+# final V1G_RAMP_HOURS_BEFORE_DEPARTURE hours before the morning departure
+# the rule reverts to the typology's normal target_soc so the agent leaves
+# with full range.  Per Wong et al. (2026) Daily Chargers target ~89 %; the
+# 70 % overnight floor cuts daily calendar exposure by roughly a fifth.
+V1G_OVERNIGHT_TARGET_SOC          = 0.70
+V1G_RAMP_HOURS_BEFORE_DEPARTURE   = 2
 
 
 # -----------------------------------------------------------------------------
@@ -494,10 +512,37 @@ class EVAgent:
     # ------------------------------------------------------------------
     # Public step method — called once per simulated hour
     # ------------------------------------------------------------------
-    def step(self, current_hour: int, current_price_per_kwh: float) -> None:
-        """Advance the agent by one simulated hour."""
+    def step(
+        self,
+        current_hour: int,
+        current_price_per_kwh: float,
+        month: int = 7,
+        discharge_revenue_per_kwh: float | None = None,
+    ) -> None:
+        """Advance the agent by one simulated hour.
+
+        The optional ``month`` argument (1..12, default 7 = July summer)
+        is forwarded to the V2G discharge decision so the aggregator can
+        evaluate the seasonal TAOZ peak window correctly under the W9.D
+        annual horizon.  Defaulting to 7 keeps backward compatibility
+        with W7-W8 summer-only weekly runs.
+
+        From W9.E, ``discharge_revenue_per_kwh`` allows the import price
+        (used for charging) to differ from the export price (revenue per
+        kWh discharged).  This matters for UK runs where the driver
+        charges on Octopus Go but is paid the Powerloop export rate for
+        V2G discharge.  When None (default), the Israeli convention of
+        same-price for import and export at the residential meter is
+        preserved.
+        """
         hour_of_day = current_hour % 24
         day_of_week = (current_hour // 24) % 7
+        self._current_month = month   # consumed by _rule_v2g
+        self._current_export_price = (
+            discharge_revenue_per_kwh
+            if discharge_revenue_per_kwh is not None
+            else current_price_per_kwh
+        )
 
         # At the start of each day, decide whether to drive and how far
         if hour_of_day == 0:
@@ -620,7 +665,7 @@ class EVAgent:
         if self.counterfactual == COUNTERFACTUAL_V0:
             return self._rule_v0(price_per_kwh)
         if self.counterfactual == COUNTERFACTUAL_V1G:
-            return self._rule_v1g(price_per_kwh)
+            return self._rule_v1g(hour_of_day, price_per_kwh)
         if self.counterfactual == COUNTERFACTUAL_V2G:
             return self._rule_v2g(hour_of_day, day_of_week, price_per_kwh)
         raise ValueError(f"unknown counterfactual {self.counterfactual!r}")
@@ -630,10 +675,34 @@ class EVAgent:
             return self._do_charge(price_per_kwh)
         return "IDLE", 0.0, 0.0
 
-    def _rule_v1g(self, price_per_kwh: float) -> tuple[str, float, float]:
+    def _v1g_current_target_soc(self, hour_of_day: int) -> float:
+        """Departure-aware V1G target SoC (Section 3.7).
+
+        The overnight floor of V1G_OVERNIGHT_TARGET_SOC (default 0.70)
+        applies whenever the next morning departure is more than
+        V1G_RAMP_HOURS_BEFORE_DEPARTURE hours away.  In the final ramp
+        window before departure the target rises back to the typology's
+        normal target_soc so the driver leaves with full range.
+        """
+        dep = self.state.departure_hour
+        ramp_start = (dep - V1G_RAMP_HOURS_BEFORE_DEPARTURE) % 24
+        # Compute hours-until-departure on a 24-hour ring.
+        hours_to_dep = (dep - hour_of_day) % 24
+        if hours_to_dep <= V1G_RAMP_HOURS_BEFORE_DEPARTURE and hours_to_dep > 0:
+            return self.state.target_soc
+        # Inside the ramp window, or AT departure: typology target.
+        # Outside the ramp window: lower overnight floor, but never below
+        # the typology target (in case the typology already targets <0.70,
+        # e.g. Public Charger at 0.747 which would be unaffected).
+        return min(V1G_OVERNIGHT_TARGET_SOC, self.state.target_soc)
+
+    def _rule_v1g(self, hour_of_day: int, price_per_kwh: float) -> tuple[str, float, float]:
+        # Priority 1 — emergency floor (range-anxiety) overrides everything.
         if self.state.soc < self.state.range_anxiety_soc_floor:
             return self._do_charge(price_per_kwh)
-        if self.state.soc < self.state.target_soc and price_per_kwh <= CHEAP_THRESHOLD_FOR_V1G:
+        # Priority 2 — smart charge to the departure-aware target at off-peak.
+        current_target = self._v1g_current_target_soc(hour_of_day)
+        if self.state.soc < current_target and price_per_kwh <= CHEAP_THRESHOLD_FOR_V1G:
             return self._do_charge(price_per_kwh)
         return "IDLE", 0.0, 0.0
 
@@ -656,16 +725,30 @@ class EVAgent:
         #   6) (W8 Batch B) agent's retailer matches the aggregator's
         #      contracted retailer.  Disabled by default; toggled with
         #      RETAILER_GATE_ENABLED in aggregator_stub.py.
+        # Export-side price (revenue per discharged kWh).  In Israel this
+        # equals the retail peak price; in the UK it is the Octopus
+        # Powerloop export rate, which is fed in via the optional
+        # discharge_revenue_per_kwh argument of step().
+        export_price = getattr(self, "_current_export_price", price_per_kwh)
+        month = getattr(self, "_current_month", 7)
+
+        # Country-specific aggregator dispatch window.
+        if self.country == "UK":
+            from src.pricing_uk import uk_aggregator_signals_discharge
+            agg_fires = uk_aggregator_signals_discharge(hour_of_day, day_of_week, month)
+        else:
+            agg_fires = aggregator_signals_discharge(hour_of_day, day_of_week, month)
+
         wants_to_sell = (
-            aggregator_signals_discharge(hour_of_day, day_of_week)
+            agg_fires
             and self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR
-            and price_per_kwh >= self.state.osp
+            and export_price >= self.state.osp
             and aggregator_accepts_retailer(self.state.retailer)
         )
         if wants_to_sell:
-            return self._do_discharge(price_per_kwh)
+            return self._do_discharge(export_price)
 
         # Priority 3 — smart charge
         if self.state.soc < self.state.target_soc and price_per_kwh <= CHEAP_THRESHOLD_FOR_V1G:

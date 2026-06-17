@@ -84,6 +84,7 @@ MARKET_SHARES_UK = {
 COUNTRY_MARKET_SHARES = {
     "Israel":          MARKET_SHARES_ISRAEL,
     "United Kingdom":  MARKET_SHARES_UK,
+    "UK":              MARKET_SHARES_UK,   # short alias
 }
 
 

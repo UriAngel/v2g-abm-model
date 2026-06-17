@@ -102,9 +102,9 @@ def panel_driver_benefit(ax, summary):
     v1g_savings = []
     v2g_total = []
     for t in typologies:
-        v0_yr = np.mean(summary[t]["V0_week"])
-        v1g_yr = np.mean(summary[t]["V1G_week"])
-        v2g_yr = np.mean(summary[t]["V2G_week"])
+        v0_yr = np.mean(summary[t]["V0_week"]) * 52
+        v1g_yr = np.mean(summary[t]["V1G_week"]) * 52
+        v2g_yr = np.mean(summary[t]["V2G_week"]) * 52
         v1g_savings.append(v0_yr - v1g_yr)        # how much V1G saves vs V0
         v2g_total.append(v0_yr - v2g_yr)          # how much V2G saves vs V0 (incl. V1G savings + V2G)
 
@@ -144,9 +144,9 @@ def panel_payback(ax, summary):
     payback_v0_v1g = []
     payback_v1g_v2g = []
     for t in typologies:
-        v0_yr  = np.mean(summary[t]["V0_week"])
-        v1g_yr = np.mean(summary[t]["V1G_week"])
-        v2g_yr = np.mean(summary[t]["V2G_week"])
+        v0_yr  = np.mean(summary[t]["V0_week"])  * 52
+        v1g_yr = np.mean(summary[t]["V1G_week"]) * 52
+        v2g_yr = np.mean(summary[t]["V2G_week"]) * 52
 
         v1g_savings = v0_yr - v1g_yr     # V1G saves vs V0 (positive = better)
         marginal    = v1g_yr - v2g_yr    # V2G marginal benefit over V1G
@@ -195,7 +195,7 @@ def panel_aggregator_per_car(ax, summary):
         # Aggregator revenue = AGGREGATOR_REVENUE_SHARE × gross V2G revenue per car per year
         # Gross V2G revenue per kWh ≈ peak price 1.69 (since discharge only at peak)
         # gross_kwh_sold is per week; × 52 for annual
-        gross_kwh_yr = np.mean(summary[t]["gross_kwh_sold"])
+        gross_kwh_yr = np.mean(summary[t]["gross_kwh_sold"]) * 52
         gross_revenue_yr = gross_kwh_yr * 1.69  # peak rate
         agg_yr = gross_revenue_yr * AGGREGATOR_REVENUE_SHARE
         agg_revenue.append(agg_yr)
@@ -218,7 +218,7 @@ def panel_aggregator_fleet(ax, summary):
     weights = {DAILY_CHARGER: 0.26, PUBLIC_CHARGER: 0.19, BEV_2ND_VEHICLE: 0.17, THRESHOLD_CHARGER: 0.38}
     avg_rev_per_car = 0.0
     for t in typologies:
-        gross_kwh_yr = np.mean(summary[t]["gross_kwh_sold"])
+        gross_kwh_yr = np.mean(summary[t]["gross_kwh_sold"]) * 52
         gross_revenue_yr = gross_kwh_yr * 1.69
         agg_yr = gross_revenue_yr * AGGREGATOR_REVENUE_SHARE
         avg_rev_per_car += weights[t] * agg_yr
