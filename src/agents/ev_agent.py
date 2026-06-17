@@ -188,23 +188,30 @@ def compute_intention(trust: float, attitude: float, subjective_norm: float) -> 
     )
 
 
-def intention_to_osp(intention: float) -> float:
+def intention_to_osp(intention: float, country: str = "Israel") -> float:
     """Map a continuous Intention score to a per-agent OSP, bounded by the
-    residential TAOZ off-peak and peak rates.
+    country's residential V2G price envelope.
 
-    Uses the logistic transform so that very high Intention drives OSP to
-    the off-peak rate (willing to discharge for as little as the retail
-    off-peak rate) and very low Intention pushes OSP toward the peak rate
-    (only discharges when the prevailing price equals retail peak).
-    Bounds come from the PUA residential TAOZ schedule.  The W7-W8 model
-    used the shoulder rate as the lower bound; from W9 the residential
-    schedule has no shoulder band, so the off-peak rate becomes the
-    natural floor.  The per-agent battery aging cost is added on top of
-    this OSP in the V2G discharge gate (Section 3.8 of Chapter 3).
+    Israel: bounds are the residential TAOZ off-peak and peak rates,
+    so OSP lies in [0.53, 1.69] NIS/kWh.
+
+    United Kingdom: bounds are Octopus Go off-peak (cheap charging) and
+    the Octopus Powerloop export rate (V2G revenue per kWh).  This
+    anchors the UK OSP to the actual envelope the driver experiences
+    rather than rescaling from NIS, and keeps the V2G discharge
+    decision feasible at realistic UK retail tariffs.
+
+    The per-agent battery aging cost is added on top of this OSP in
+    the V2G discharge gate (Section 3.8 of Chapter 3).
     """
+    if country in ("UK", "United Kingdom"):
+        from src.pricing_uk import OCTOPUS_GO_OFFPEAK_GBP, POWERLOOP_EXPORT_GBP
+        low_bound, high_bound = OCTOPUS_GO_OFFPEAK_GBP, POWERLOOP_EXPORT_GBP
+    else:
+        low_bound, high_bound = PRICE_OFFPEAK, PRICE_PEAK
     sigmoid = 1.0 / (1.0 + math.exp(-intention))
     # sigmoid in (0, 1).  Map so that high intention -> low OSP.
-    return PRICE_PEAK - (PRICE_PEAK - PRICE_OFFPEAK) * sigmoid
+    return high_bound - (high_bound - low_bound) * sigmoid
 
 
 # -----------------------------------------------------------------------------
@@ -438,7 +445,7 @@ class EVAgent:
             self.state.v2g_capable = True
             if SEM_ENABLED:
                 self.state.v2g_opted_in = self.state.intention_to_use_v2g > 0.0
-                base_osp = intention_to_osp(self.state.intention_to_use_v2g)
+                base_osp = intention_to_osp(self.state.intention_to_use_v2g, country=self.country)
             else:
                 self.state.v2g_opted_in = True
                 base_osp = SEM_DISABLED_FLAT_OSP
@@ -538,6 +545,7 @@ class EVAgent:
         hour_of_day = current_hour % 24
         day_of_week = (current_hour // 24) % 7
         self._current_month = month   # consumed by _rule_v2g
+        self._current_hour_global = current_hour   # consumed by FeederAgent check
         self._current_export_price = (
             discharge_revenue_per_kwh
             if discharge_revenue_per_kwh is not None
@@ -676,24 +684,42 @@ class EVAgent:
         return "IDLE", 0.0, 0.0
 
     def _v1g_current_target_soc(self, hour_of_day: int) -> float:
-        """Departure-aware V1G target SoC (Section 3.7).
+        """Country-aware V1G target SoC (Section 3.7).
 
-        The overnight floor of V1G_OVERNIGHT_TARGET_SOC (default 0.70)
-        applies whenever the next morning departure is more than
-        V1G_RAMP_HOURS_BEFORE_DEPARTURE hours away.  In the final ramp
-        window before departure the target rises back to the typology's
-        normal target_soc so the driver leaves with full range.
+        Israel: under residential 2-band TAOZ the off-peak window is
+        broad (everything outside 17-22 in summer Sun-Thu).  The agent
+        targets V1G_OVERNIGHT_TARGET_SOC (0.70) through the overnight
+        idle window and ramps to the typology target_soc in the final
+        V1G_RAMP_HOURS_BEFORE_DEPARTURE hours before departure.  This
+        reduces calendar aging without sacrificing departure range.
+
+        United Kingdom: under Octopus Go the off-peak window is short
+        (00:00-05:00, rounded from 00:30-04:30).  Aligning the V1G
+        top-up with the cheap window matters more than the calendar-
+        aging optimisation, so the agent fills to typology target_soc
+        throughout the off-peak window regardless of departure time.
+        Outside the off-peak window, the agent holds at the overnight
+        floor.
         """
+        if self.country in ("UK", "United Kingdom"):
+            from src.pricing_uk import (
+                OCTOPUS_GO_OFFPEAK_START_HOUR,
+                OCTOPUS_GO_OFFPEAK_END_HOUR,
+            )
+            in_off_peak = (
+                OCTOPUS_GO_OFFPEAK_START_HOUR
+                <= hour_of_day
+                < OCTOPUS_GO_OFFPEAK_END_HOUR
+            )
+            if in_off_peak:
+                return self.state.target_soc
+            return min(V1G_OVERNIGHT_TARGET_SOC, self.state.target_soc)
+
+        # Israel (default): departure-aware ramp.
         dep = self.state.departure_hour
-        ramp_start = (dep - V1G_RAMP_HOURS_BEFORE_DEPARTURE) % 24
-        # Compute hours-until-departure on a 24-hour ring.
         hours_to_dep = (dep - hour_of_day) % 24
-        if hours_to_dep <= V1G_RAMP_HOURS_BEFORE_DEPARTURE and hours_to_dep > 0:
+        if 0 < hours_to_dep <= V1G_RAMP_HOURS_BEFORE_DEPARTURE:
             return self.state.target_soc
-        # Inside the ramp window, or AT departure: typology target.
-        # Outside the ramp window: lower overnight floor, but never below
-        # the typology target (in case the typology already targets <0.70,
-        # e.g. Public Charger at 0.747 which would be unaffected).
         return min(V1G_OVERNIGHT_TARGET_SOC, self.state.target_soc)
 
     def _rule_v1g(self, hour_of_day: int, price_per_kwh: float) -> tuple[str, float, float]:
@@ -764,6 +790,15 @@ class EVAgent:
         max_this_hour_kwh = self.state.max_charge_power_kw * 1.0
         energy_drawn_kwh = min(max_this_hour_kwh, headroom_kwh)
 
+        # W9.F GridAgent check: feeder may refuse if transformer is saturated.
+        feeder = getattr(self, "feeder", None)
+        current_hour = getattr(self, "_current_hour_global", 0)
+        if feeder is not None:
+            if not feeder.can_charge(energy_drawn_kwh, current_hour):
+                feeder.denied_charges += 1
+                return "IDLE_GRID_LIMITED", 0.0, 0.0
+            feeder.record_charge(energy_drawn_kwh, current_hour)
+
         energy_into_battery = energy_drawn_kwh * self.state.charging_efficiency_c
         soc_increase = energy_into_battery / (self.state.battery_kwh_usable * self.state.soh)
         self.state.soc = min(1.0, self.state.soc + soc_increase)
@@ -782,6 +817,16 @@ class EVAgent:
 
         if energy_out_of_battery_kwh <= 0.0:
             return "IDLE", 0.0, 0.0
+
+        # W9.F GridAgent check: feeder may refuse if transformer is saturated
+        # in the export direction.  Conservative: query before committing.
+        feeder = getattr(self, "feeder", None)
+        current_hour = getattr(self, "_current_hour_global", 0)
+        if feeder is not None:
+            if not feeder.can_discharge(energy_out_of_battery_kwh, current_hour):
+                feeder.denied_discharges += 1
+                return "IDLE_GRID_LIMITED", 0.0, 0.0
+            feeder.record_discharge(energy_out_of_battery_kwh, current_hour)
 
         energy_to_grid_kwh = energy_out_of_battery_kwh * self.state.charging_efficiency_d
 
