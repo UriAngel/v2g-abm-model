@@ -76,21 +76,25 @@ TYPOLOGY_PROFILES = {
         "target_soc":        0.892,   # Hoke 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.85,
         "charge_threshold":  0.0,     # 0 = no threshold; always plug in when home
+        # W10.G.3: annual V2G discharge cap per Wong 2026 Fig 5 mean.
+        "annual_v2g_kwh_cap": 1259.0,
     },
     PUBLIC_CHARGER: {
-        # No home charger; uses workplace charging.  V2G is not possible
-        # because they are never plugged in at home overnight.
+        # Per Wong 2026, Public Chargers CAN participate in V2G but at
+        # very low annual energy (111 kWh/yr) because they rarely charge
+        # overnight at home.  We allow V2G capability but cap the energy.
         "daily_km_mean": 48.0,
         "departure_hour_mean": 7,
         "return_hour_mean":   19,
         "drive_days_per_week": 6.41,  # Hoke 2026 Table 1
         "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
-        "has_home_charger":  False,
+        "has_home_charger":  True,   # W10.G.3: Wong allows V2G - enable home charger
         "has_workplace_charger": True,
         "target_soc":        0.747,   # Hoke 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.80,
         "charge_threshold":  0.0,
+        "annual_v2g_kwh_cap": 111.0,   # W10.G.3: Wong 2026 Fig 5
     },
     BEV_2ND_VEHICLE: {
         # Hoke 2026 Table 1: 4.74 drive days per week, modelled
@@ -105,6 +109,7 @@ TYPOLOGY_PROFILES = {
         "target_soc":        0.87,    # Hoke 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.80,
         "charge_threshold":  0.0,
+        "annual_v2g_kwh_cap": 576.0,   # W10.G.3: Wong 2026 Fig 5
     },
     THRESHOLD_CHARGER: {
         # Plugs in only when SoC < charge_threshold, charges to target_soc,
@@ -119,6 +124,7 @@ TYPOLOGY_PROFILES = {
         "target_soc":        0.85,    # Hoke 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.50,
         "charge_threshold":  0.461,   # Hoke 2026 Table 1: Mean SoC at plug-in
+        "annual_v2g_kwh_cap": 204.0,   # W10.G.3: Wong 2026 Fig 5
     },
 }
 
@@ -282,6 +288,7 @@ class EVAgentState:
     cumulative_v2g_discharge_kwh: float = 0.0  # W10.A.3: V2G discharge only
     cumulative_calendar_aging: float = 0.0     # SoH lost to calendar aging
     cumulative_cycle_aging: float = 0.0        # SoH lost to cycling
+    annual_v2g_kwh_cap: float = 9999.0         # W10.G.3: Wong-anchored cap
 
     # --- Power limits ---
     max_charge_power_kw: float = 7.0
@@ -391,6 +398,7 @@ class EVAgent:
             drive_days_per_week=profile["drive_days_per_week"],
             drives_on_weekend=profile["drives_on_weekend"],
             soc=profile["starting_soc"],
+            annual_v2g_kwh_cap=profile.get("annual_v2g_kwh_cap", 9999.0),
         )
 
         # Per-agent commute jitter, Gaussian std 0.5h (Brinkel 2020, Gandhi 2021).
@@ -756,16 +764,19 @@ class EVAgent:
         export_price = getattr(self, "_current_export_price", price_per_kwh)
         month = getattr(self, "_current_month", 7)
 
-        # W10.B: aggregator-retailer coupling dropped per David M6.  The
-        # driver discharges whenever the export price exceeds OSP; revenue
-        # per kWh is whatever stream the run loop passes via
-        # discharge_revenue_per_kwh (retail tariff in the retail scenario,
-        # wholesale price in the wholesale scenario).
+        # W10.B: aggregator-retailer coupling dropped per David M6.
+        # W10.G.3: V2G activity is capped at Wong 2026 Fig 5 per-typology
+        # annual energy (Daily 1259, Public 111, BEV-2nd 576, Threshold
+        # 204 kWh/yr).  Once the cap is hit the agent stops discharging
+        # for the remainder of the simulated year; V0/V1G are unaffected.
+        under_cap = (self.state.cumulative_v2g_discharge_kwh
+                     < self.state.annual_v2g_kwh_cap)
         wants_to_sell = (
             self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR
             and export_price >= self.state.osp
+            and under_cap
         )
         if wants_to_sell:
             return self._do_discharge(export_price)

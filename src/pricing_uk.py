@@ -31,20 +31,34 @@ currently embed seasonal structure for residential customers.
 # Rates (GBP per kWh)
 # ----------------------------------------------------------------------
 
-# Ofgem default cap rate (Q2 2025).  Used as the V0 baseline.
-OFGEM_CAP_RATE_GBP = 0.245
+# W10.G: rate refresh against current public Octopus / Ofgem pages
+# (verified via web search June 2026).  Historic Q2 2025 values kept
+# as comments for traceability against the older W9.E commit.
 
-# Octopus Go.  Used as the V1G smart-charging tariff.
-OCTOPUS_GO_OFFPEAK_GBP = 0.085   # 00:30-04:30
-OCTOPUS_GO_PEAK_GBP    = 0.281   # the rest of the day
-OCTOPUS_GO_OFFPEAK_START_HOUR = 0    # rounded from 00:30 to 00:00 for the hourly model
-OCTOPUS_GO_OFFPEAK_END_HOUR   = 5    # rounded from 04:30 to 05:00, exclusive
+# Ofgem default tariff cap, Apr-Jun 2026 (E&W&S average, direct debit,
+# VAT inclusive).  Was 0.245 in Q2 2025, now 0.2467.
+OFGEM_CAP_RATE_GBP = 0.2467
 
-# Octopus Powerloop.
-# Import side: identical to Octopus Go (V1G structure).
-# Export side: flat per-kWh rate during the afternoon-to-evening peak
-# window when the aggregator typically calls discharge.
-POWERLOOP_EXPORT_GBP   = 0.214   # paid to the driver per discharged kWh
+# Octopus Go / Intelligent Octopus Go (V1G smart-charging tariff).
+# Was 0.085 / 0.281 in 4-h window in W9.E.  Public rate as of June 2026:
+#   - Intelligent Octopus Go: 7p off-peak, 5- or 6-h smart window
+#   - Standard Octopus Go:    6.99-9.5p off-peak depending on region
+#   - Peak: 31.64p
+# We use the headline Intelligent Go figures because they're the
+# product Octopus is actively marketing for V2G drivers.
+OCTOPUS_GO_OFFPEAK_GBP = 0.070   # 7 p, Intelligent Octopus Go
+OCTOPUS_GO_PEAK_GBP    = 0.3164  # 31.64 p (was 28.1 p)
+OCTOPUS_GO_OFFPEAK_START_HOUR = 0    # rounded from 23:30
+OCTOPUS_GO_OFFPEAK_END_HOUR   = 6    # rounded to 05:30, exclusive (6 h window)
+
+# Octopus Powerloop -> rebranded to Octopus Power Pack in 2026.
+# Old Powerloop (Sciurus trial 2021): 21.4 p export, 16-19 window.
+# Current Power Pack: "free miles" model; standard outgoing export
+# rate is 12 p/kWh from March 2026.  We use 12 p as the V2G export
+# rate the driver effectively receives, applied across the same
+# afternoon-to-evening peak window for compatibility with the W9
+# model structure.
+POWERLOOP_EXPORT_GBP   = 0.12    # was 0.214 p (Sciurus trial era)
 POWERLOOP_DISCHARGE_START_HOUR = 16
 POWERLOOP_DISCHARGE_END_HOUR   = 19   # exclusive
 
