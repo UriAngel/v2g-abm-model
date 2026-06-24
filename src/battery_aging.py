@@ -75,15 +75,22 @@ def battery_replacement_cost(chemistry: str) -> float:
     return BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC
 
 
-def calendar_aging_this_hour(soc: float) -> float:
-    """SoH loss from calendar aging in one hour at the given SoC.
+def calendar_aging_this_hour(soc: float = 0.6) -> float:
+    """SoH loss from calendar aging in one hour.
 
-    Higher SoC accelerates calendar aging.  Multiplier is centred at
-    SoC = 0.6 (industry-typical resting SoC for EV batteries).  At SoC = 1.0
-    aging is 1.2x baseline; at SoC = 0.3 it is 0.85x baseline.
+    W10.A.2: flat per-hour rate, independent of SoC, so all typologies
+    accumulate identical calendar aging given the same horizon.  The
+    Gasper 2023 SoC-modulation is intentionally dropped here because
+    typology SoC profiles vary widely and the resulting calendar-aging
+    spread (35-40%) misleadingly amplifies typology effects.
+
+    The `soc` argument is retained for backwards compatibility with the
+    EVAgent step() call site and is currently unused.  A future revision
+    may reintroduce SoC sensitivity as an explicit secondary term so it
+    is visible separately from the time-driven baseline.
     """
-    multiplier = max(0.0, 1.0 + 0.5 * (soc - 0.6))
-    return CALENDAR_AGING_PER_HOUR_BASELINE * multiplier
+    del soc  # currently unused; see docstring
+    return CALENDAR_AGING_PER_HOUR_BASELINE
 
 
 def cycle_aging_this_hour(kwh_throughput: float, chemistry: str = "NMC") -> float:

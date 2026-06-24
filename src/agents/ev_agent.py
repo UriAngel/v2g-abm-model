@@ -285,9 +285,10 @@ class EVAgentState:
     chemistry: str = "NMC"
     vehicle_model: str = "Tesla Model Y NMC"   # set at agent init from country market shares
     # W8 Batch D: aging accounting
-    cumulative_throughput_kwh: float = 0.0   # |charge| + |discharge| over the run
-    cumulative_calendar_aging: float = 0.0   # SoH lost to calendar aging
-    cumulative_cycle_aging: float = 0.0      # SoH lost to cycling
+    cumulative_throughput_kwh: float = 0.0     # |charge| + |discharge| over the run
+    cumulative_v2g_discharge_kwh: float = 0.0  # W10.A.3: V2G discharge only
+    cumulative_calendar_aging: float = 0.0     # SoH lost to calendar aging
+    cumulative_cycle_aging: float = 0.0        # SoH lost to cycling
 
     # --- Power limits ---
     max_charge_power_kw: float = 7.0
@@ -832,6 +833,10 @@ class EVAgent:
 
         soc_decrease = energy_out_of_battery_kwh / (self.state.battery_kwh_usable * self.state.soh)
         self.state.soc -= soc_decrease
+
+        # W10.A.3: track V2G discharge separately from total throughput so
+        # the aging plot can show V2G as its own layer on cycle aging.
+        self.state.cumulative_v2g_discharge_kwh += energy_out_of_battery_kwh
 
         # W8 Batch F: gross V2G revenue gets split.  The driver keeps a
         # share (DRIVER_REVENUE_SHARE), the aggregator keeps the rest.
