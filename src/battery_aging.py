@@ -29,9 +29,18 @@ Future-batch extensions:
 # Hours in a 10-year horizon used for calibration.
 _HOURS_10Y = 10 * 365 * 24   # 87,600
 
-# Calendar aging per hour at baseline SoC = 0.60, 25°C, NMC chemistry.
-# Calibrated so 87,600 hours of pure rest gives 20% loss.
-CALENDAR_AGING_PER_HOUR_BASELINE = 0.20 / _HOURS_10Y     # ~2.28e-6
+# Calendar aging per hour, NMC|Gr B1 (calendar-dominated chemistry).
+# W10.I (June 2026): re-anchored to Wong 2026 Section 2.3.
+#   * Wong NMC|Gr B1 V0 control 10-year total capacity loss ~18 %
+#     (visual read of Wong Fig 3; replace with exact number when the
+#     supplementary CSV becomes available).
+#   * Wong reports calendar share of total degradation = 79.2 % for
+#     NMC|Gr B1 (Sec 2.3 quote).
+#   * Calendar-only 10-year loss = 0.18 x 0.792 = 0.1426 ~ 14.3 %.
+# Was 0.20 / HOURS_10Y in W10.A-F; that 20 % figure was an internal
+# approximation, NOT a published Wong number.  Reduced ~40 % to match
+# the actual published values.
+CALENDAR_AGING_PER_HOUR_BASELINE = 0.143 / _HOURS_10Y    # ~1.63e-6
 
 # Cycle aging per kWh throughput, NMC baseline.  Calibrated against a
 # typical V2G participant in Wong et al. 2026: ~7,500 kWh of extra V2G
