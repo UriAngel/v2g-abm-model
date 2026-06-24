@@ -29,12 +29,6 @@ from src.pricing import (
     PRICE_OFFPEAK,
     PRICE_PEAK,
 )
-from src.aggregator_stub import (
-    aggregator_signals_discharge,
-    aggregator_accepts_retailer,
-    DRIVER_REVENUE_SHARE,
-    AGGREGATOR_REVENUE_SHARE,
-)
 from src.battery_aging import (
     calendar_aging_this_hour,
     cycle_aging_this_hour,
@@ -759,20 +753,16 @@ class EVAgent:
         export_price = getattr(self, "_current_export_price", price_per_kwh)
         month = getattr(self, "_current_month", 7)
 
-        # Country-specific aggregator dispatch window.
-        if self.country == "UK":
-            from src.pricing_uk import uk_aggregator_signals_discharge
-            agg_fires = uk_aggregator_signals_discharge(hour_of_day, day_of_week, month)
-        else:
-            agg_fires = aggregator_signals_discharge(hour_of_day, day_of_week, month)
-
+        # W10.B: aggregator-retailer coupling dropped per David M6.  The
+        # driver discharges whenever the export price exceeds OSP; revenue
+        # per kWh is whatever stream the run loop passes via
+        # discharge_revenue_per_kwh (retail tariff in the retail scenario,
+        # wholesale price in the wholesale scenario).
         wants_to_sell = (
-            agg_fires
-            and self.state.v2g_opted_in
+            self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR
             and export_price >= self.state.osp
-            and aggregator_accepts_retailer(self.state.retailer)
         )
         if wants_to_sell:
             return self._do_discharge(export_price)
@@ -838,10 +828,8 @@ class EVAgent:
         # the aging plot can show V2G as its own layer on cycle aging.
         self.state.cumulative_v2g_discharge_kwh += energy_out_of_battery_kwh
 
-        # W8 Batch F: gross V2G revenue gets split.  The driver keeps a
-        # share (DRIVER_REVENUE_SHARE), the aggregator keeps the rest.
-        # The agent's cost_currency log records only the driver's portion,
-        # which is the meaningful number for the household's economics.
-        gross_revenue = energy_to_grid_kwh * price_per_kwh
-        driver_revenue = gross_revenue * DRIVER_REVENUE_SHARE
+        # W10.B: aggregator layer dropped per David M6.  Driver keeps 100%
+        # of the V2G revenue at whichever rate the scenario provides
+        # (retail tariff or wholesale price; passed in via export_price).
+        driver_revenue = energy_to_grid_kwh * price_per_kwh
         return "DISCHARGE", -energy_to_grid_kwh, -driver_revenue
