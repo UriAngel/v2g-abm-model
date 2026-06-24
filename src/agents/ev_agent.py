@@ -32,7 +32,6 @@ from src.pricing import (
 from src.battery_aging import (
     calendar_aging_this_hour,
     cycle_aging_this_hour,
-    aging_cost_per_kwh_discharged,
 )
 from src.vehicle_catalog import (
     VEHICLE_CATALOG,
@@ -444,10 +443,14 @@ class EVAgent:
             else:
                 self.state.v2g_opted_in = True
                 base_osp = SEM_DISABLED_FLAT_OSP
-            # W8 Batch D + E: add per-kWh aging cost (chemistry-dependent)
-            # on top of the SEM-derived OSP.  LFP and NMC give different
-            # aging costs because of cycle wear and replacement cost.
-            self.state.osp = base_osp + aging_cost_per_kwh_discharged(self.state.chemistry)
+            # W10.F: aging cost is no longer baked into the OSP.  The
+            # driver's OSP is the pure SEM-derived value (intention -> NIS).
+            # Battery aging is tracked as a physical consequence of
+            # operation and reported as SoH at year 1 / 5 / 10 milestones
+            # (see batterY_aging.soh_after_years), not folded into prices.
+            # This dodges the §3.8 NIS/kWh math entirely and matches how
+            # Sciurus and Wong frame V2G aging in their public reporting.
+            self.state.osp = base_osp
             self.state.max_discharge_power_kw = 9.6
 
         # Sample this agent's electricity retailer from realistic Israeli

@@ -99,11 +99,60 @@ def cycle_aging_this_hour(kwh_throughput: float, chemistry: str = "NMC") -> floa
 
 
 def aging_cost_per_kwh_discharged(chemistry: str = "NMC") -> float:
-    """Aging cost (NIS) imputed to one kWh discharged in V2G operation.
+    """DEPRECATED in W10.F.
 
-    Differs by chemistry: LFP has higher cycle wear per kWh but lower
-    replacement cost; NMC is the opposite.  Net per-kWh aging cost ends
-    up roughly in the same ballpark for both, but LFP edges slightly
-    higher because of the cycle-wear multiplier.
+    The original §3.8 formulation multiplied the per-kWh cycle aging
+    coefficient (a fraction of SoH consumed) by the per-kWh-of-capacity
+    battery replacement cost, which is dimensionally wrong and yields a
+    figure that is roughly battery_size_kWh times too small.
+
+    W10.F decision: stop folding aging into OSP at all.  Battery aging
+    is reported as a physical consequence of operation, via the SoH
+    milestones returned by `project_soh_milestones`, not priced into
+    discharge decisions.  This matches Sciurus and Wong's public
+    reporting style and dodges the §3.8 calibration question entirely.
+
+    Left in place only so older plot scripts that import the name still
+    work; should not influence any new model decision.
     """
     return cycle_aging_coefficient(chemistry) * battery_replacement_cost(chemistry)
+
+
+def project_soh_milestones(
+    cal_aging_observed: float,
+    cyc_aging_observed: float,
+    hours_observed: int = 168,
+) -> dict[int, dict]:
+    """W10.F: project SoH at year 1, 5, 10 from observed aging totals.
+
+    Linearly extrapolates observed calendar + cycle SoH loss from a
+    short simulation horizon (typically one week) to the year-1, 5, 10
+    milestones David asked to see in the M6 follow-up.  Returns a dict
+    keyed by years with both the cumulative SoH loss and the resulting
+    SoH at that point.
+
+    Parameters
+    ----------
+    cal_aging_observed : float
+        Cumulative calendar SoH loss observed over `hours_observed`.
+    cyc_aging_observed : float
+        Cumulative cycle SoH loss observed over `hours_observed`.
+    hours_observed : int
+        Length of the simulation window the aging was measured over.
+    """
+    hours_per_year = 8760
+    annual_cal = cal_aging_observed * (hours_per_year / hours_observed)
+    annual_cyc = cyc_aging_observed * (hours_per_year / hours_observed)
+    out: dict[int, dict] = {}
+    for years in (1, 5, 10):
+        cal_loss = annual_cal * years
+        cyc_loss = annual_cyc * years
+        soh = max(0.0, 1.0 - cal_loss - cyc_loss)
+        out[years] = {
+            "cal_loss_pct": cal_loss * 100,
+            "cyc_loss_pct": cyc_loss * 100,
+            "total_loss_pct": (cal_loss + cyc_loss) * 100,
+            "soh_pct": soh * 100,
+            "above_eol": soh > EOL_SOH,
+        }
+    return out
