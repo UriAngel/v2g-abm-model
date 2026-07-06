@@ -1,12 +1,10 @@
-"""W8 demo runner — Batch A version.
+"""Weekly demo runner (20-car fleet, one week, three counterfactuals).
 
-W8 Batch A changes from W7 Sunday version:
-  * Fleet composition now uses Hoke 2026 California shares instead of
-    uniform 5 per typology: Daily Charger 5, Public Charger 4,
-    BEV 2nd Vehicle 3, Threshold Charger 8 (total 20 cars, ratios
-    26 / 19 / 17 / 38 percent rounded for n=20).
-  * Pricing is now weekday-aware: peak rate applies only Sun-Thu.
-  * BEV 2nd Vehicle drives Tue-Wed-Thu only (David W8 meeting).
+Key features:
+  * Fleet composition uses Wong 2026 California shares: Daily Charger 5,
+    Public Charger 4, BEV 2nd Vehicle 3, Threshold Charger 8 (total 20
+    cars, ratios 26 / 19 / 17 / 38 percent rounded for n=20).
+  * Pricing is weekday-aware: peak rate applies only Sun-Thu.
   * Threshold Charger has real threshold plug-in behaviour.
 
 For each (typology, counterfactual) combination we write one CSV file
@@ -37,8 +35,8 @@ from src.pricing import price_at_hour
 
 HOURS_IN_WEEK = 168
 
-# California typology shares from Hoke 2026 Appendix B, rounded to fit a
-# 20-car fleet for the W8 demo.  Underlying percentages: Daily 26, Public 19,
+# California typology shares from Wong 2026 Appendix B, rounded to fit
+# the 20-car demo fleet.  Underlying percentages: Daily 26, Public 19,
 # BEV 2nd 17, Threshold 38.
 CARS_PER_TYPOLOGY = {
     DAILY_CHARGER:    5,   # 25 % of fleet
@@ -98,8 +96,8 @@ def mean_std(values: list[float]) -> tuple[float, float]:
 
 def main() -> None:
     composition = ", ".join(f"{n} {t}" for t, n in CARS_PER_TYPOLOGY.items())
-    print(f"=== V2G ABM — W8 Batch B demo ({FLEET_SIZE}-car fleet x 3 CFs x 1 week) ===")
-    print(f"Fleet composition (Hoke 2026 California shares): {composition}")
+    print(f"=== V2G ABM — weekly demo ({FLEET_SIZE}-car fleet x 3 CFs x 1 week) ===")
+    print(f"Fleet composition (Wong 2026 California shares): {composition}")
     print("Prices: TAOZ summer (NIS/kWh)  off-peak 0.53, shoulder 0.85, peak 1.69")
     if RETAILER_GATE_ENABLED:
         print(f"Aggregator-retailer gate: ENABLED.  Only {AGGREGATOR_CONTRACTED_RETAILER} customers can V2G.")
@@ -147,9 +145,9 @@ def main() -> None:
     print(" - Negative net cost means the owner earned money on net.")
     print(" - 'annual' uses mean weekly cost x 52, ignoring seasonal variation.")
     print(" - Public Charger uses workplace charging only (no overnight V2G).")
-    print(" - All typologies drive probabilistically per Hoke 2026 Table 1 drive-days/wk.")
-    print(" - BEV 2nd Vehicle: 4.74 drive days/wk (Hoke).")
-    print(" - Threshold Charger: plugs in below 46.1% SoC, charges to 85% (both Hoke).")
+    print(" - All typologies drive probabilistically per Wong 2026 Table 1 drive-days/wk.")
+    print(" - BEV 2nd Vehicle: 4.74 drive days/wk (Wong).")
+    print(" - Threshold Charger: plugs in below 46.1% SoC, charges to 85% (both Wong).")
     print(" - Friday and Saturday treated as Israeli weekend for driving only.")
     print(" - TAOZ peak rate 17-23 applies every day in the standard residential schedule.")
 

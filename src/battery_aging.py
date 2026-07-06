@@ -1,6 +1,6 @@
 """Battery aging — simplified Gasper 2023-style unified model.
 
-W8 Batch D.  Splits battery degradation into:
+Splits battery degradation into:
   - Calendar aging: continuous SoH loss from time, modulated by SoC and
     temperature.  Happens every hour, regardless of charge or discharge.
   - Cycle aging:    SoH loss from throughput (kWh moved in or out of the
@@ -14,11 +14,11 @@ Calibration anchors (NMC chemistry, 25°C Israeli summer):
     no cycling.  This matches industry consensus for NMC at typical
     temperatures (Wong et al. 2026 Figure 6 control case; Gasper et al.
     2023 unified model output).
-  - Cycle aging: 0.7% additional SoH loss over 10 years from V2G operation
-    on top of normal driving cycles, per Wong et al. 2026 Section 3.4
-    finding for the conservative 50%-floor + overnight-only V2G strategy.
+  - Cycle aging: order-of-magnitude per-kWh rate (~0.7% SoH per ~7,500 kWh
+    of throughput).  Reported V2G aging figures come from Wong et al.
+    2026's published per-typology effects, not from this coefficient.
 
-Future-batch extensions:
+Possible extensions:
   - LFP chemistry (Gasper 2023 reports cycle aging is roughly 3x higher for
     LFP|Gr designs than NMC|Gr).
   - Temperature variation (Arrhenius dependence in the calendar term).
@@ -30,22 +30,25 @@ Future-batch extensions:
 _HOURS_10Y = 10 * 365 * 24   # 87,600
 
 # Calendar aging per hour, NMC|Gr B1 (calendar-dominated chemistry).
-# W10.I (June 2026): re-anchored to Wong 2026 Section 2.3.
+# Anchored to Wong 2026 Section 2.3:
 #   * Wong NMC|Gr B1 V0 control 10-year total capacity loss ~18 %
-#     (visual read of Wong Fig 3; replace with exact number when the
-#     supplementary CSV becomes available).
-#   * Wong reports calendar share of total degradation = 79.2 % for
+#     (visual read of Wong Fig 3; approximate — exact value pending the
+#     supplementary dataset).
+#   * Wong reports calendar share of total degradation = 79.4 % for
 #     NMC|Gr B1 (Sec 2.3 quote).
-#   * Calendar-only 10-year loss = 0.18 x 0.792 = 0.1426 ~ 14.3 %.
-# Was 0.20 / HOURS_10Y in W10.A-F; that 20 % figure was an internal
-# approximation, NOT a published Wong number.  Reduced ~40 % to match
-# the actual published values.
+#   * Calendar-only 10-year loss = 0.18 x 0.794 = 0.1429 ~ 14.3 %.
 CALENDAR_AGING_PER_HOUR_BASELINE = 0.143 / _HOURS_10Y    # ~1.63e-6
 
-# Cycle aging per kWh throughput, NMC baseline.  Calibrated against a
-# typical V2G participant in Wong et al. 2026: ~7,500 kWh of extra V2G
-# throughput over 10 years -> 0.7% extra SoH loss for NMC|Gr.
-CYCLE_AGING_PER_KWH_THROUGHPUT_NMC = 0.007 / 7_500       # ~9.3e-7
+# Cycle aging per kWh throughput, NMC baseline.
+# The "0.7 % over 10 y for ~7,500 kWh" pairing is not a published Wong
+# number (see aging_table_lit.py).  The coefficient below is an
+# order-of-magnitude rate that produces plausible SoH deltas in the
+# in-simulation tracker.  Reported 10-year V2G aging in
+# plot_w10h_aging_wong.py comes NOT from this coefficient but from
+# Wong's published categorical effect (IMPROVE / NEUTRAL / SLIGHT /
+# DECREASE / LARGE via WONG_V2G_EFFECT) scaled by the observed/Wong
+# volume ratio.
+CYCLE_AGING_PER_KWH_THROUGHPUT_NMC = 0.007 / 7_500       # ~9.3e-7 (order-of-magnitude)
 
 # LFP|Gr design shows higher sensitivity to cycle aging in Gasper 2023
 # unified model output (Wong 2026 footnote: "the battery with the highest
@@ -57,12 +60,17 @@ CYCLE_AGING_PER_KWH_THROUGHPUT_LFP = CYCLE_AGING_PER_KWH_THROUGHPUT_NMC * CYCLE_
 # Calendar aging is roughly equivalent between chemistries at 25°C
 # (Gasper 2023, NMC vs LFP).  Use the same baseline.
 
-# Battery replacement cost (NIS/kWh).  Differs by chemistry: LFP is
-# cheaper because no cobalt or nickel; NMC is more expensive.
-BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC = 480.0   # NMC pack 2024 ~$130/kWh
-BATTERY_REPLACEMENT_COST_NIS_PER_KWH_LFP = 350.0   # LFP pack 2024 ~$95/kWh
+# Battery replacement cost (NIS/kWh).  Anchored to the BloombergNEF
+# 2025 lithium-ion battery price survey (published December 2025):
+#   * BEV-grade NMC pack average: $128 / kWh   (was $130 in 2024)
+#   * BEV-grade LFP pack average:  $81 / kWh   (was  $95 in 2024)
+#   * 2026 outlook: roughly -3 % across the board (~$124 NMC, ~$78 LFP)
+# Source: BloombergNEF "New record lows for battery prices" Dec 2025.
+# USD -> NIS conversion at 4.7 (mid-2026 rate).
+BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC = 600.0   # $128/kWh * 4.7 NIS/USD
+BATTERY_REPLACEMENT_COST_NIS_PER_KWH_LFP = 380.0   # $ 81/kWh * 4.7 NIS/USD
 
-# Backwards-compatible name (used by older code; defaults to NMC).
+# Convenience aliases defaulting to NMC (imported by several scripts).
 BATTERY_REPLACEMENT_COST_NIS_PER_KWH = BATTERY_REPLACEMENT_COST_NIS_PER_KWH_NMC
 CYCLE_AGING_PER_KWH_THROUGHPUT = CYCLE_AGING_PER_KWH_THROUGHPUT_NMC
 
@@ -87,15 +95,15 @@ def battery_replacement_cost(chemistry: str) -> float:
 def calendar_aging_this_hour(soc: float = 0.6) -> float:
     """SoH loss from calendar aging in one hour.
 
-    W10.A.2: flat per-hour rate, independent of SoC, so all typologies
+    Flat per-hour rate, independent of SoC, so all typologies
     accumulate identical calendar aging given the same horizon.  The
-    Gasper 2023 SoC-modulation is intentionally dropped here because
+    Gasper 2023 SoC-modulation is intentionally omitted here because
     typology SoC profiles vary widely and the resulting calendar-aging
     spread (35-40%) misleadingly amplifies typology effects.
 
-    The `soc` argument is retained for backwards compatibility with the
+    The `soc` argument is retained for interface compatibility with the
     EVAgent step() call site and is currently unused.  A future revision
-    may reintroduce SoC sensitivity as an explicit secondary term so it
+    may introduce SoC sensitivity as an explicit secondary term so it
     is visible separately from the time-driven baseline.
     """
     del soc  # currently unused; see docstring
@@ -108,21 +116,20 @@ def cycle_aging_this_hour(kwh_throughput: float, chemistry: str = "NMC") -> floa
 
 
 def aging_cost_per_kwh_discharged(chemistry: str = "NMC") -> float:
-    """DEPRECATED in W10.F.
+    """Deprecated; not used in any model decision.
 
-    The original §3.8 formulation multiplied the per-kWh cycle aging
+    This §3.8-style formulation multiplies the per-kWh cycle aging
     coefficient (a fraction of SoH consumed) by the per-kWh-of-capacity
-    battery replacement cost, which is dimensionally wrong and yields a
-    figure that is roughly battery_size_kWh times too small.
+    battery replacement cost, which is dimensionally inconsistent and
+    yields a figure roughly battery_size_kWh times too small.
 
-    W10.F decision: stop folding aging into OSP at all.  Battery aging
-    is reported as a physical consequence of operation, via the SoH
+    Aging is therefore not folded into the OSP.  Battery aging is
+    reported as a physical consequence of operation, via the SoH
     milestones returned by `project_soh_milestones`, not priced into
     discharge decisions.  This matches Sciurus and Wong's public
-    reporting style and dodges the §3.8 calibration question entirely.
+    reporting style.
 
-    Left in place only so older plot scripts that import the name still
-    work; should not influence any new model decision.
+    Retained only so plot scripts that import the name still work.
     """
     return cycle_aging_coefficient(chemistry) * battery_replacement_cost(chemistry)
 
@@ -132,13 +139,12 @@ def project_soh_milestones(
     cyc_aging_observed: float,
     hours_observed: int = 168,
 ) -> dict[int, dict]:
-    """W10.F: project SoH at year 1, 5, 10 from observed aging totals.
+    """Project SoH at year 1, 5, 10 from observed aging totals.
 
     Linearly extrapolates observed calendar + cycle SoH loss from a
-    short simulation horizon (typically one week) to the year-1, 5, 10
-    milestones David asked to see in the M6 follow-up.  Returns a dict
-    keyed by years with both the cumulative SoH loss and the resulting
-    SoH at that point.
+    short simulation horizon (typically one week) to year-1, 5 and 10
+    milestones.  Returns a dict keyed by years with both the cumulative
+    SoH loss and the resulting SoH at that point.
 
     Parameters
     ----------

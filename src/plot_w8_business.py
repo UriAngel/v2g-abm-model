@@ -1,4 +1,4 @@
-"""W8 Batch F business model plot.
+"""Business model plot.
 
 Runs the V2G fleet and computes:
   - Driver annual net benefit: V2G earnings (75% share) + V1G savings vs V0
@@ -58,13 +58,12 @@ COLORS = {
 def run_fleet(country: str = "Israel") -> dict:
     """Simulate V0, V1G, V2G for every car over a full calendar year.
 
-    From W9.D this runs the annual 8,760-hour horizon with seasonal
-    TAOZ dispatch.  Hourly indices are mapped to (hour_of_day,
-    day_of_week, month) via calendar_helper.hour_to_calendar so the
-    pricing module sees the correct season and weekday rule on each
-    step.  Keys named ``V0_week`` etc are kept for backward
-    compatibility but now hold full-year net costs; downstream panels
-    no longer multiply by 52.
+    Runs the annual 8,760-hour horizon with seasonal TAOZ dispatch.
+    Hourly indices are mapped to (hour_of_day, day_of_week, month)
+    via calendar_helper.hour_to_calendar so the pricing module sees
+    the correct season and weekday rule on each step.  Keys named
+    ``V0_week`` etc hold full-year net costs despite the name;
+    downstream panels do not multiply by 52.
     """
     ev_agent_module.SEM_ENABLED = True
     results = {t: {"V0_week": [], "V1G_week": [], "V2G_week": [], "gross_kwh_sold": []} for t in ALL_TYPOLOGIES}

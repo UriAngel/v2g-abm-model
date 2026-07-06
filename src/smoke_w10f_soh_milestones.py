@@ -1,9 +1,9 @@
-"""W10.F SoH milestones: year-1, year-5, year-10 health projection.
+"""SoH milestones: year-1, year-5, year-10 health projection.
 
-After dropping the aging-cost-in-OSP folding (W10.F), battery aging is
-reported as a physical consequence of operation rather than as a price.
-This script runs each typology x counterfactual for one calendar week
-and projects SoH to the year-1, 5, 10 milestones David asked for.
+Battery aging is reported as a physical consequence of operation
+rather than as a price folded into the OSP.  This script runs each
+typology x counterfactual for one calendar week and projects SoH to
+year-1, 5 and 10 milestones.
 
 Run:  python -m src.smoke_w10f_soh_milestones
 """
@@ -52,7 +52,7 @@ def measure_one_week(typology: str, counterfactual: str) -> tuple[float, float]:
 
 def main() -> None:
     print()
-    print(f"W10.F SoH milestones (one-week sim x {N_AGENTS_PER_CELL} agents, "
+    print(f"SoH milestones (one-week sim x {N_AGENTS_PER_CELL} agents, "
           f"projected linearly)")
     print(f"EoL threshold = {EOL_SOH * 100:.0f}% SoH; "
           f"* marks runs that fall below EoL by year 10.")

@@ -1,4 +1,4 @@
-"""Four supporting figures for the Meeting 6 deck (W9).
+"""Four supporting figures for the deck.
 
 Generates:
   1. taoz_seasonal_heatmap.png       7x24 heatmap per season showing peak/off-peak
@@ -14,6 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from src.plot_style import apply_style
+apply_style()
 from matplotlib.colors import ListedColormap
 import numpy as np
 

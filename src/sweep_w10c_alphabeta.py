@@ -1,13 +1,13 @@
-"""W10.C.2 sensitivity sweep over (alpha, beta).
+"""Sensitivity sweep over (alpha, beta).
 
-David M6 ask: parameterise the Israeli V2G fleet capacity by two
-multiplicative coefficients and play with them.
+The Israeli V2G fleet capacity is parameterised by two multiplicative
+coefficients:
 
   alpha = EV share of total vehicle fleet
   beta  = V2G-capable share of the EV fleet
 
-This script computes per-V2G-EV weekly economics from the W10.B smoke
-test output (typology-weighted using Wong shares) and scales it to
+This script computes per-V2G-EV weekly economics from the retail
+scenario (typology-weighted using Wong shares) and scales it to
 fleet-level annual figures across a sweep of (alpha, beta) pairs.
 
 The simulation is run under the *retail* scenario, because the
@@ -36,11 +36,30 @@ from src.fleet_assumptions import N_FLEET_ISRAEL
 
 HOURS_IN_WEEK = 168
 WEEKS_IN_YEAR = 52
+HOURS_IN_YEAR = 8760           # full annual horizon
 N_AGENTS_PER_TYPOLOGY = 80     # oversample for stable means
+
+
+# Cumulative days at start of each month (non-leap year), used to map
+# hour_of_year -> month index for the TAOZ seasonal peak schedule.
+_MONTH_START_DAY = (0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365)
+
+
+def month_of_hour_of_year(hour_of_year: int) -> int:
+    """Map hour_of_year (0..8759) -> month index (1..12).
+
+    Assumes a non-leap year starting on 1 January.
+    """
+    day_of_year = hour_of_year // 24
+    # Linear search over the 12 month boundaries.
+    for m in range(1, 13):
+        if day_of_year < _MONTH_START_DAY[m]:
+            return m
+    return 12
 
 # Wong shares (used to weight per-typology results into a "per V2G-capable
 # EV" mean for fleet-level scaling).  These are the California shares from
-# Hoke 2026 Appendix B; we use them as our best available proxy for the
+# Wong 2026 Appendix B; we use them as our best available proxy for the
 # Israeli driver-type mix in the absence of local data.
 WONG_SHARES = {
     DAILY_CHARGER:     0.25,
@@ -55,8 +74,14 @@ BETA_GRID  = [0.10, 0.25, 0.50, 0.75, 1.00]   # V2G share of EVs
 
 
 def per_typology_weekly_v2g_economics() -> dict[str, dict]:
-    """For each typology, mean weekly V2G discharge and revenue per agent
-    (retail scenario)."""
+    """Full-year run.
+
+    Loops the full 8,760 hours with the correct month passed to
+    price_at_hour, so summer, transition and winter TAOZ peak windows
+    are each applied for their real duration.  Reports the resulting
+    ANNUAL V2G discharge and revenue per agent, and back-derives a
+    weekly-equivalent value for callers that ask for `v2g_kwh_per_wk`.
+    """
     ev_agent_module.SEM_ENABLED = True
     out: dict[str, dict] = {}
     for typology in ALL_TYPOLOGIES:
@@ -65,19 +90,27 @@ def per_typology_weekly_v2g_economics() -> dict[str, dict]:
         for i in range(N_AGENTS_PER_TYPOLOGY):
             a = EVAgent(agent_id=base * 1000 + i, typology=typology,
                         counterfactual=COUNTERFACTUAL_V2G)
-            for hour in range(HOURS_IN_WEEK):
+            for hour in range(HOURS_IN_YEAR):
                 hod = hour % 24
                 dow = (hour // 24) % 7
-                p_retail = price_at_hour(hod, dow)
+                month = month_of_hour_of_year(hour)
+                p_retail = price_at_hour(hod, dow, month)
                 a.step(current_hour=hour, current_price_per_kwh=p_retail,
                        discharge_revenue_per_kwh=p_retail)
             v2g_kwh_arr.append(a.state.cumulative_v2g_discharge_kwh)
             rev = -sum(r["cost_currency"] for r in a.hourly_log
                        if r["cost_currency"] < 0)
             revenue_arr.append(rev)
+        annual_kwh = float(np.mean(v2g_kwh_arr))
+        annual_rev = float(np.mean(revenue_arr))
         out[typology] = {
-            "v2g_kwh_per_wk": float(np.mean(v2g_kwh_arr)),
-            "revenue_nis_per_wk": float(np.mean(revenue_arr)),
+            "v2g_kwh_per_yr":    annual_kwh,
+            "revenue_nis_per_yr": annual_rev,
+            # Back-derived weekly figure kept for callers that still
+            # multiply by WEEKS_IN_YEAR.  For those callers the annual
+            # value round-trips.
+            "v2g_kwh_per_wk":     annual_kwh / WEEKS_IN_YEAR,
+            "revenue_nis_per_wk": annual_rev / WEEKS_IN_YEAR,
         }
     return out
 

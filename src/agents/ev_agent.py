@@ -1,18 +1,16 @@
-"""EV Agent — implements §3 of the v8 rules document.
+"""EV Agent — implements §3 of the rules document.
 
-W8 Batch A changes (after Monday W7 supervisor meeting):
-  * Gaussian commute jitter (std 0.5h, per Brinkel 2020) replaces uniform.
-  * Log-normal daily km (sigma 0.6, per Liao 2025) replaces Gaussian.
-  * Weekend factor: Friday and Saturday (Israeli convention) use shorter
+Key behavioural features:
+  * Gaussian commute jitter (std 0.5h, Brinkel 2020).
+  * Log-normal daily km (sigma 0.6, Liao 2025).
+  * Weekend factor: Friday and Saturday (Israeli convention) use a shorter
     midday commute (11:00 to 17:00) and reduced km (factor 0.5).
-  * BEV 2nd Vehicle now drives only Tuesday, Wednesday, Thursday
-    (per David W8 meeting), down from Mon-Thu.
-  * Threshold Charger gets real threshold behaviour: it plugs in only when
-    SoC falls below charge_threshold (0.461, Wong 2026 Table 1 "Mean SoC
-    at plug-in"), and stays plugged in until target_soc (0.85, Wong Table
-    1 "Mean SoC after charge") is reached. Daily Charger by contrast plugs
-    in whenever the vehicle is at home, regardless of current SoC.
-  * Day-of-week is now passed to pricing and aggregator so peak rates and
+  * Threshold Charger plugs in only when SoC falls below charge_threshold
+    (0.461, Wong 2026 Table 1 "Mean SoC at plug-in"), and stays plugged in
+    until target_soc (0.85, Wong Table 1 "Mean SoC after charge") is
+    reached. Daily Charger by contrast plugs in whenever the vehicle is
+    at home, regardless of current SoC.
+  * Day-of-week is passed to pricing and aggregator so peak rates and
     discharge signals apply only Sunday through Thursday (TAOZ summer).
 
 Day-of-week convention (Israeli): 0=Sunday ... 4=Thursday, 5=Friday, 6=Saturday.
@@ -40,7 +38,7 @@ from src.vehicle_catalog import (
 
 
 # -----------------------------------------------------------------------------
-# Typology — the four driver categories from Hoke 2026 (rules §3.1)
+# Typology — the four driver categories from Wong 2026 (rules §3.1)
 # -----------------------------------------------------------------------------
 
 DAILY_CHARGER = "Daily Charger"
@@ -57,7 +55,7 @@ ALL_TYPOLOGIES = (
 
 
 # -----------------------------------------------------------------------------
-# Per-typology default profiles (matches v8 §3.1 + §3.2 with W7 simplifications)
+# Per-typology default profiles (rules §3.1 + §3.2)
 # -----------------------------------------------------------------------------
 # Each profile describes a "typical" agent of that driver type. Individual
 # agents get a random jitter applied at construction so they aren't all
@@ -69,62 +67,75 @@ TYPOLOGY_PROFILES = {
         "daily_km_mean": 40.0,        # km/day, weekday
         "departure_hour_mean": 8,     # 08:00 morning out
         "return_hour_mean":   18,     # 18:00 evening back
-        "drive_days_per_week": 6.43,  # Hoke 2026 Table 1
+        "drive_days_per_week": 6.43,  # Wong 2026 Table 1
         "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.892,   # Hoke 2026 Table 1: Mean SoC after charge
+        "target_soc":        0.892,   # Wong 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.85,
         "charge_threshold":  0.0,     # 0 = no threshold; always plug in when home
-        # W10.G.3: annual V2G discharge cap per Wong 2026 Fig 5 mean.
+        # Wong 2026 Table 1 "Mean number of charging events per week"
+        # for the Daily Charger cluster is 6.11.  That is FEWER than the
+        # 6.43 driving days per week, so even Daily Chargers do not plug in
+        # every single home evening.  Modelled stochastically: probability
+        # of plugging in on a given home evening = 6.11 / 7 = 0.873.
+        "plugin_events_per_week": 6.11,
+        # Annual V2G discharge per Wong 2026 Fig 5 mean.
         "annual_v2g_kwh_cap": 1259.0,
     },
     PUBLIC_CHARGER: {
-        # Per Wong 2026, Public Chargers CAN participate in V2G but at
-        # very low annual energy (111 kWh/yr) because they rarely charge
-        # overnight at home.  We allow V2G capability but cap the energy.
+        # Wong 2026: Public Chargers "lack home charging access and rely
+        # primarily on DC fast charging from public chargers".  They
+        # charge to 80 % SOC at public DC chargers, infrequently.
+        # No home charger -> structurally cannot V2G.  This understates
+        # Wong's small 111 kWh/yr V2G observation, but matches the
+        # dominant Wong characterisation.
         "daily_km_mean": 48.0,
         "departure_hour_mean": 7,
         "return_hour_mean":   19,
-        "drive_days_per_week": 6.41,  # Hoke 2026 Table 1
+        "drive_days_per_week": 6.41,  # Wong 2026 Table 1
         "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
-        "has_home_charger":  True,   # W10.G.3: Wong allows V2G - enable home charger
+        "has_home_charger":  False,
         "has_workplace_charger": True,
-        "target_soc":        0.747,   # Hoke 2026 Table 1: Mean SoC after charge
+        "target_soc":        0.747,   # Wong 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.80,
         "charge_threshold":  0.0,
-        "annual_v2g_kwh_cap": 111.0,   # W10.G.3: Wong 2026 Fig 5
+        "annual_v2g_kwh_cap": 111.0,  # Wong 2026 Fig 5; cap gate not applied
     },
     BEV_2ND_VEHICLE: {
-        # Hoke 2026 Table 1: 4.74 drive days per week, modelled
+        # Wong 2026 Table 1: 4.74 drive days per week, modelled
         # probabilistically (drive each day with probability 4.74 / 7).
         "daily_km_mean": 22.0,
         "departure_hour_mean": 10,
         "return_hour_mean":   16,
-        "drive_days_per_week": 4.74,  # Hoke 2026 Table 1
+        "drive_days_per_week": 4.74,  # Wong 2026 Table 1
         "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.87,    # Hoke 2026 Table 1: Mean SoC after charge
+        "target_soc":        0.87,    # Wong 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.80,
         "charge_threshold":  0.0,
-        "annual_v2g_kwh_cap": 576.0,   # W10.G.3: Wong 2026 Fig 5
+        # Plug-in probability aligned with the Daily Charger
+        # (Wong Table 1: 6.11 events/week = 87 %), so both active
+        # typologies share a single plug-in calibration.
+        "plugin_events_per_week": 6.11,
+        "annual_v2g_kwh_cap": 576.0,   # Wong 2026 Fig 5
     },
     THRESHOLD_CHARGER: {
         # Plugs in only when SoC < charge_threshold, charges to target_soc,
-        # then unplugs.  All three numbers from Hoke 2026 Table 1.
+        # then unplugs.  All three numbers from Wong 2026 Table 1.
         "daily_km_mean": 38.0,
         "departure_hour_mean": 8,
         "return_hour_mean":   18,
-        "drive_days_per_week": 6.44,  # Hoke 2026 Table 1
+        "drive_days_per_week": 6.44,  # Wong 2026 Table 1
         "drives_on_weekend":  True,
         "battery_kwh_usable": 60.0,
         "has_home_charger":  True,
-        "target_soc":        0.85,    # Hoke 2026 Table 1: Mean SoC after charge
+        "target_soc":        0.85,    # Wong 2026 Table 1: Mean SoC after charge
         "starting_soc":      0.50,
-        "charge_threshold":  0.461,   # Hoke 2026 Table 1: Mean SoC at plug-in
-        "annual_v2g_kwh_cap": 204.0,   # W10.G.3: Wong 2026 Fig 5
+        "charge_threshold":  0.461,   # Wong 2026 Table 1: Mean SoC at plug-in
+        "annual_v2g_kwh_cap": 204.0,   # Wong 2026 Fig 5
     },
 }
 
@@ -134,7 +145,7 @@ WEEKEND_KM_FACTOR = 0.5       # weekend trip kms = weekday × this
 WEEKEND_DEPARTURE_HOUR = 11   # midday weekend trip start
 WEEKEND_RETURN_HOUR = 17      # midday weekend trip end (before peak)
 
-# Randomness parameters agreed at W8:
+# Randomness parameters:
 COMMUTE_JITTER_STD_HOURS = 0.5     # Brinkel 2020, Gandhi 2021
 DAILY_KM_LOG_SIGMA = 0.6           # Liao 2025 (Chinese sample, transferred)
 
@@ -200,8 +211,9 @@ def intention_to_osp(intention: float, country: str = "Israel") -> float:
     rather than rescaling from NIS, and keeps the V2G discharge
     decision feasible at realistic UK retail tariffs.
 
-    The per-agent battery aging cost is added on top of this OSP in
-    the V2G discharge gate (Section 3.8 of Chapter 3).
+    Note: battery aging is NOT folded into the OSP or the discharge
+    gate; it is tracked physically and reported post hoc (see
+    battery_aging.py docstrings).
     """
     if country in ("UK", "United Kingdom"):
         from src.pricing_uk import OCTOPUS_GO_OFFPEAK_GBP, POWERLOOP_EXPORT_GBP
@@ -255,9 +267,13 @@ COUNTERFACTUAL_V2G = "V2G"   # active: V1G plus selling back to grid
 
 CONSUMPTION_KWH_PER_KM = 0.18
 V2G_SOC_FLOOR = 0.50         # §3.6  contractual minimum SoC for V2G discharge
+# V2G-opted-in aggregator cap (Sciurus / Kaluza mobile-app pattern,
+# Kempton & Tomic 2005 battery-longevity guidance, Wong 2026 Table 1
+# observed 89.2 %).  Non-opted-in agents charge to 100 %.
+V2G_MAX_SOC = 0.90
 
 # -----------------------------------------------------------------------------
-# V1G departure-aware top-up rule (Section 3.7, W9.C)
+# V1G departure-aware top-up rule (Section 3.7)
 # -----------------------------------------------------------------------------
 # During the long overnight parked period the V1G agent targets a reduced
 # state of charge (V1G_OVERNIGHT_TARGET_SOC) to slow calendar aging.  In the
@@ -277,18 +293,18 @@ V1G_RAMP_HOURS_BEFORE_DEPARTURE   = 2
 class EVAgentState:
     """All persistent state for one EV agent, updated every hour."""
 
-    # --- Battery (Batch E: chemistry from sampled vehicle) ---
+    # --- Battery (chemistry from sampled vehicle) ---
     soc: float = 0.80
     soh: float = 1.00
     battery_kwh_usable: float = 60.0
     chemistry: str = "NMC"
     vehicle_model: str = "Tesla Model Y NMC"   # set at agent init from country market shares
-    # W8 Batch D: aging accounting
+    # Aging accounting
     cumulative_throughput_kwh: float = 0.0     # |charge| + |discharge| over the run
-    cumulative_v2g_discharge_kwh: float = 0.0  # W10.A.3: V2G discharge only
+    cumulative_v2g_discharge_kwh: float = 0.0  # V2G discharge only
     cumulative_calendar_aging: float = 0.0     # SoH lost to calendar aging
     cumulative_cycle_aging: float = 0.0        # SoH lost to cycling
-    annual_v2g_kwh_cap: float = 9999.0         # W10.G.3: Wong-anchored cap
+    annual_v2g_kwh_cap: float = 9999.0         # Wong-anchored (Fig 5)
 
     # --- Power limits ---
     max_charge_power_kw: float = 7.0
@@ -319,16 +335,19 @@ class EVAgentState:
     # --- Charging targets ---
     target_soc: float = 0.89
     charge_threshold: float = 0.0      # 0 = plug in any time; >0 = Threshold Charger behaviour
+    # Fewer than 7 plug-in events per week even for Daily Chargers
+    # (Wong 2026 Table 1).  7.0 = plug in every home night.
+    plugin_events_per_week: float = 7.0
 
     # --- Behaviour ---
     range_anxiety_soc_floor: float = 0.30
     osp: float = 0.0
     v2g_opted_in: bool = False
 
-    # --- Retail relationship (W8 Batch B) ---
+    # --- Retail relationship ---
     retailer: str = "IEC"
 
-    # --- Latent attitudinal scores (W8 Batch C, Mehdizadeh-style SEM) ---
+    # --- Latent attitudinal scores (Mehdizadeh-style SEM) ---
     # Each is a z-score drawn from N(0, 1) at agent creation.  They feed
     # into Attitude and Intention via the path coefficients in the SEM.
     trust_in_v2g: float = 0.0
@@ -359,7 +378,8 @@ class EVAgent:
         One of "V0", "V1G", "V2G".
     """
 
-    def __init__(self, agent_id: int, typology: str, counterfactual: str, country: str = "Israel"):
+    def __init__(self, agent_id: int, typology: str, counterfactual: str, country: str = "Israel",
+                 run_seed: int = 0):
         # Identity + validation
         assert typology in ALL_TYPOLOGIES, f"unknown typology {typology!r}"
         assert counterfactual in (COUNTERFACTUAL_V0,
@@ -371,16 +391,18 @@ class EVAgent:
         self.counterfactual = counterfactual
         self.country = country
 
-        # Per-agent random number generator, seeded by id+typology.  This makes
-        # the jitter and daily-km noise reproducible: rerun the demo with the
-        # same code and you get identical numbers.
-        seed_int = agent_id * 1000 + ALL_TYPOLOGIES.index(typology)
+        # Per-agent random number generator, seeded by run_seed + id + typology.
+        # run_seed lets Monte Carlo runs draw genuinely different
+        # realisations while staying fully reproducible (same run_seed + same
+        # parameters -> identical simulation).  run_seed=0 gives the
+        # single-realisation baseline.
+        seed_int = run_seed * 10_000_000 + agent_id * 1000 + ALL_TYPOLOGIES.index(typology)
         self._rng = random.Random(seed_int)
 
         # Pull the typology profile and apply it to the agent's state
         profile = TYPOLOGY_PROFILES[typology]
 
-        # W8 Batch E: sample this agent's vehicle from the country's
+        # Sample this agent's vehicle from the country's
         # market-share distribution.  Vehicle dictates battery capacity
         # and chemistry, overriding the typology default of 60 kWh.
         vehicle_model = sample_vehicle(self._rng, country=country)
@@ -394,6 +416,7 @@ class EVAgent:
             has_workplace_charger=profile.get("has_workplace_charger", False),
             target_soc=profile["target_soc"],
             charge_threshold=profile["charge_threshold"],
+            plugin_events_per_week=profile.get("plugin_events_per_week", 7.0),
             daily_km_mean=profile["daily_km_mean"],
             drive_days_per_week=profile["drive_days_per_week"],
             drives_on_weekend=profile["drives_on_weekend"],
@@ -415,7 +438,7 @@ class EVAgent:
         self.state.departure_hour = self.state.weekday_departure_hour
         self.state.return_hour = self.state.weekday_return_hour
 
-        # --- W8 Batch C: SEM-based behavioural willingness ---
+        # --- SEM-based behavioural willingness ---
         # Draw five latent attitudinal scores per agent as z-scores from
         # N(0, 1) (standard SEM convention).  Combine into Attitude and
         # Intention using the path coefficients from the Mehdizadeh-style SEM.
@@ -439,7 +462,7 @@ class EVAgent:
         )
 
         # V2G setup — only relevant for the V2G counterfactual.  Public
-        # Chargers cannot V2G in W7 because they have no home charger.
+        # Chargers cannot V2G because they have no home charger.
         # Opt-in and OSP depend on SEM_ENABLED:
         #   SEM_ENABLED = True  -> opt-in if Intention > 0; OSP from sigmoid
         #   SEM_ENABLED = False -> opt-in always; OSP = SEM_DISABLED_FLAT_OSP
@@ -451,19 +474,19 @@ class EVAgent:
             else:
                 self.state.v2g_opted_in = True
                 base_osp = SEM_DISABLED_FLAT_OSP
-            # W10.F: aging cost is no longer baked into the OSP.  The
-            # driver's OSP is the pure SEM-derived value (intention -> NIS).
-            # Battery aging is tracked as a physical consequence of
-            # operation and reported as SoH at year 1 / 5 / 10 milestones
-            # (see batterY_aging.soh_after_years), not folded into prices.
-            # This dodges the §3.8 NIS/kWh math entirely and matches how
-            # Sciurus and Wong frame V2G aging in their public reporting.
+            # Aging cost is not baked into the OSP.  The driver's OSP is
+            # the pure SEM-derived value (intention -> NIS).  Battery
+            # aging is tracked as a physical consequence of operation and
+            # reported as SoH at year 1 / 5 / 10 milestones (see
+            # battery_aging.soh_after_years), not folded into prices.
+            # This matches how Sciurus and Wong frame V2G aging in their
+            # public reporting.
             self.state.osp = base_osp
             self.state.max_discharge_power_kw = 9.6
 
         # Sample this agent's electricity retailer from realistic Israeli
-        # market shares (used by the optional aggregator-retailer gate
-        # in `_rule_v2g`).
+        # market shares (recorded per agent; available to retailer-level
+        # analyses).
         self.state.retailer = sample_retailer(self._rng)
 
         # Sample today's driving for day 0
@@ -485,11 +508,11 @@ class EVAgent:
 
         Drive-days are now sampled probabilistically per day: each day,
         drive with probability `drive_days_per_week / 7`, matching the
-        Hoke 2026 Table 1 count in expectation.
+        Wong 2026 Table 1 count in expectation.
         """
         is_weekend = day_of_week in WEEKEND_DAYS
 
-        # Probabilistic drive-day decision based on Hoke 2026 drive_days/wk.
+        # Probabilistic drive-day decision based on Wong 2026 drive_days/wk.
         drive_probability = self.state.drive_days_per_week / 7.0
         will_drive = self._rng.random() < drive_probability
 
@@ -536,11 +559,11 @@ class EVAgent:
 
         The optional ``month`` argument (1..12, default 7 = July summer)
         is forwarded to the V2G discharge decision so the aggregator can
-        evaluate the seasonal TAOZ peak window correctly under the W9.D
-        annual horizon.  Defaulting to 7 keeps backward compatibility
-        with W7-W8 summer-only weekly runs.
+        evaluate the seasonal TAOZ peak window correctly over an annual
+        horizon.  Defaulting to 7 keeps summer-only weekly runs
+        unchanged.
 
-        From W9.E, ``discharge_revenue_per_kwh`` allows the import price
+        ``discharge_revenue_per_kwh`` allows the import price
         (used for charging) to differ from the export price (revenue per
         kWh discharged).  This matters for UK runs where the driver
         charges on Octopus Go but is paid the Powerloop export rate for
@@ -577,7 +600,7 @@ class EVAgent:
                 price_per_kwh=current_price_per_kwh,
             )
 
-        # Step C — battery health (Batch D + E, chemistry-aware).
+        # Step C — battery health (chemistry-aware).
         cal_loss = calendar_aging_this_hour(self.state.soc)
         cyc_loss = cycle_aging_this_hour(energy_kwh, self.state.chemistry)
         self.state.cumulative_calendar_aging += cal_loss
@@ -637,24 +660,38 @@ class EVAgent:
     def _decide_home_plug_in(self) -> bool:
         """Plug-in decision while at home.
 
-        Daily Charger and BEV 2nd Vehicle: plug in whenever home (so long as
-        the household has a home charger).  Threshold Charger: plug in only
-        once SoC has fallen below charge_threshold, then stay plugged in
-        until target_soc is reached, then unplug.  This gives the
-        characteristic "long stretches unplugged, short bursts of full
-        charging" pattern that distinguishes Threshold Charger from the
-        others.
+        Even Daily Chargers do not plug in every home evening.
+        Wong 2026 Table 1 reports 6.11 charging events per week for the
+        Daily Charger cluster.  We model this by drawing ONCE per day
+        (on the first home-hour of that day) whether the agent will
+        plug in tonight, with probability plugin_events_per_week / 7.
+        The decision persists for the rest of the day.
+
+        Threshold Charger: plug in only once SoC has fallen below
+        charge_threshold, then stay plugged in until target_soc is
+        reached, then unplug.  This behaviour is unaffected by the
+        Wong-Table-1 probability draw.
         """
         if not self.state.has_home_charger:
             return False
-        if self.state.charge_threshold <= 0.0:
-            return True
-        # Threshold behaviour with hysteresis.
-        if self.state.plugged_in:
-            # Already in a charging session — stay plugged in until full.
-            return self.state.soc < self.state.target_soc
-        # Not currently plugged in — only start a new session if SoC is low.
-        return self.state.soc < self.state.charge_threshold
+
+        # Threshold Charger branch first: hysteresis rule dominates.
+        if self.state.charge_threshold > 0.0:
+            if self.state.plugged_in:
+                return self.state.soc < self.state.target_soc
+            return self.state.soc < self.state.charge_threshold
+
+        # Daily Charger / BEV 2nd Vehicle branch.
+        # One Bernoulli draw per day for whether to plug in tonight.
+        if self.state.plugin_events_per_week >= 7.0:
+            return True   # plug in every home night
+        current_day = getattr(self, "_current_hour_global", 0) // 24
+        last_decision_day = getattr(self, "_last_plugin_decision_day", -1)
+        if current_day != last_decision_day:
+            p = self.state.plugin_events_per_week / 7.0
+            self._plugin_decision_today = self._rng.random() < p
+            self._last_plugin_decision_day = current_day
+        return self._plugin_decision_today
 
     def _is_driving_now(self, hour_of_day: int) -> bool:
         """True for the single outbound hour and single inbound hour each day,
@@ -748,15 +785,11 @@ class EVAgent:
         if self.state.soc < self.state.range_anxiety_soc_floor:
             return self._do_charge(price_per_kwh)
 
-        # Priority 2 — V2G discharge.  Six-condition gate:
-        #   1) aggregator signals discharge this hour
-        #   2) agent has opted in
-        #   3) agent is V2G capable (has home charger + bidirectional hardware)
-        #   4) SoC is above the contractual V2G floor
-        #   5) price is at or above the agent's OSP
-        #   6) (W8 Batch B) agent's retailer matches the aggregator's
-        #      contracted retailer.  Disabled by default; toggled with
-        #      RETAILER_GATE_ENABLED in aggregator_stub.py.
+        # Priority 2 — V2G discharge.  Four-condition gate:
+        #   1) agent has opted in
+        #   2) agent is V2G capable (has home charger + bidirectional hardware)
+        #   3) SoC is above the contractual V2G floor
+        #   4) export price is at or above the agent's OSP
         # Export-side price (revenue per discharged kWh).  In Israel this
         # equals the retail peak price; in the UK it is the Octopus
         # Powerloop export rate, which is fed in via the optional
@@ -764,19 +797,17 @@ class EVAgent:
         export_price = getattr(self, "_current_export_price", price_per_kwh)
         month = getattr(self, "_current_month", 7)
 
-        # W10.B: aggregator-retailer coupling dropped per David M6.
-        # W10.G.3: V2G activity is capped at Wong 2026 Fig 5 per-typology
-        # annual energy (Daily 1259, Public 111, BEV-2nd 576, Threshold
-        # 204 kWh/yr).  Once the cap is hit the agent stops discharging
-        # for the remainder of the simulated year; V0/V1G are unaffected.
-        under_cap = (self.state.cumulative_v2g_discharge_kwh
-                     < self.state.annual_v2g_kwh_cap)
+        # The agent discharges any hour where the export price beats its
+        # OSP.  This price-driven strategy produces a higher annual V2G
+        # volume than Wong 2026's window-bound strategy (overnight +
+        # 6-9 PM only).  Battery aging is reported by scaling Wong's
+        # published per-typology V2G effect linearly by
+        # (our_kWh / Wong_kWh); see plot_w10q_pnl_two_panel.py.
         wants_to_sell = (
             self.state.v2g_opted_in
             and self.state.v2g_capable
             and self.state.soc > V2G_SOC_FLOOR
             and export_price >= self.state.osp
-            and under_cap
         )
         if wants_to_sell:
             return self._do_discharge(export_price)
@@ -791,11 +822,17 @@ class EVAgent:
     # Physical actions
     # ------------------------------------------------------------------
     def _do_charge(self, price_per_kwh: float) -> tuple[str, float, float]:
-        headroom_kwh = (1.0 - self.state.soc) * self.state.battery_kwh_usable * self.state.soh
+        # V2G-opted-in agents cap SoC at V2G_MAX_SOC (90 %) per the
+        # Sciurus / Kaluza mobile-app pattern and Kempton & Tomic 2005 battery
+        # longevity guidance.  Non-opted-in agents charge to 100 %.
+        soc_ceiling = V2G_MAX_SOC if self.state.v2g_opted_in else 1.0
+        headroom_kwh = max(0.0,
+            (soc_ceiling - self.state.soc) * self.state.battery_kwh_usable * self.state.soh
+        )
         max_this_hour_kwh = self.state.max_charge_power_kw * 1.0
         energy_drawn_kwh = min(max_this_hour_kwh, headroom_kwh)
 
-        # W9.F GridAgent check: feeder may refuse if transformer is saturated.
+        # GridAgent check: feeder may refuse if transformer is saturated.
         feeder = getattr(self, "feeder", None)
         current_hour = getattr(self, "_current_hour_global", 0)
         if feeder is not None:
@@ -823,7 +860,7 @@ class EVAgent:
         if energy_out_of_battery_kwh <= 0.0:
             return "IDLE", 0.0, 0.0
 
-        # W9.F GridAgent check: feeder may refuse if transformer is saturated
+        # GridAgent check: feeder may refuse if transformer is saturated
         # in the export direction.  Conservative: query before committing.
         feeder = getattr(self, "feeder", None)
         current_hour = getattr(self, "_current_hour_global", 0)
@@ -838,12 +875,12 @@ class EVAgent:
         soc_decrease = energy_out_of_battery_kwh / (self.state.battery_kwh_usable * self.state.soh)
         self.state.soc -= soc_decrease
 
-        # W10.A.3: track V2G discharge separately from total throughput so
-        # the aging plot can show V2G as its own layer on cycle aging.
+        # Track V2G discharge separately from total throughput so the
+        # aging plot can show V2G as its own layer on cycle aging.
         self.state.cumulative_v2g_discharge_kwh += energy_out_of_battery_kwh
 
-        # W10.B: aggregator layer dropped per David M6.  Driver keeps 100%
-        # of the V2G revenue at whichever rate the scenario provides
-        # (retail tariff or wholesale price; passed in via export_price).
+        # Driver keeps 100% of the V2G revenue at whichever rate the
+        # scenario provides (retail tariff or wholesale price; passed in
+        # via export_price).
         driver_revenue = energy_to_grid_kwh * price_per_kwh
         return "DISCHARGE", -energy_to_grid_kwh, -driver_revenue

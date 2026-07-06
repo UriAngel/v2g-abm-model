@@ -1,4 +1,4 @@
-"""W8 Batch E diagnostic: vehicle mix, chemistry split and aging cost.
+"""Diagnostic: vehicle mix, chemistry split and aging cost.
 
 Three panels:
   (a) Vehicle model market share per country, side by side.

@@ -1,4 +1,4 @@
-"""Calendar helpers for the annual horizon simulation (W9.D).
+"""Calendar helpers for the annual horizon simulation.
 
 Convert hour-of-year (0..8759) into (hour_of_day, day_of_week, month).
 

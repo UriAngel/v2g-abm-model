@@ -34,7 +34,7 @@ Convention:
                 (matches the Israeli workweek of Sun-Thu and the
                 EVAgent convention (hour // 24) % 7).
   month:        1-12 (Gregorian).  Default 7 (July) preserves the
-                W7-W8 summer-only assumption when month is not given.
+                summer-only assumption when month is not given.
 """
 
 # -----------------------------------------------------------------------------
@@ -43,12 +43,11 @@ Convention:
 PRICE_OFFPEAK = 0.5283   # שפל  (off-peak)
 PRICE_PEAK    = 1.6895   # פסגה  (peak)
 
-# W10.B: wholesale prices (Israeli electricity market, NIS per kWh,
+# Wholesale prices (Israeli electricity market, NIS per kWh,
 # pre-VAT and pre-T&D).  Two bands following the same peak/off-peak
 # schedule as retail, but at the IEC system marginal cost level (about
 # 27% of retail).  Used in the "wholesale-price" V2G revenue scenario
-# in place of retail when the aggregator-retailer coupling is dropped
-# (David M6).  Values are PUA wholesale market reference 2024-26.
+# in place of retail.  Values are PUA wholesale market reference 2024-26.
 WHOLESALE_OFFPEAK = 0.14   # ~26% of retail off-peak
 WHOLESALE_PEAK    = 0.46   # ~27% of retail peak
 
@@ -124,7 +123,7 @@ def price_at_hour(
     day_of_week : int
         0=Sunday, 6=Saturday.  Default 0 preserves a Sun-Thu weekday.
     month : int
-        1-12.  Default 7 (July, summer) preserves the W7-W8 summer-only
+        1-12.  Default 7 (July, summer) preserves the summer-only
         assumption when callers do not pass a month.
 
     Returns
@@ -145,17 +144,33 @@ def wholesale_price_at_hour(
     day_of_week: int = 0,
     month: int = 7,
 ) -> float:
-    """W10.B: Israeli wholesale (system marginal cost) price for one hour.
+    """Israeli wholesale (system marginal cost) price for one hour.
 
-    Same peak/off-peak schedule as retail but at the wholesale rate.
-    Used in the V2G "wholesale-price" scenario (driver receives the
-    wholesale value of every kWh discharged rather than retail).
+    Status: this is a PLACEHOLDER wholesale curve derived from the
+    TAOZ peak/off-peak schedule, NOT real NOGA SMP data.  NOGA's public
+    SMP portal (https://www.noga-iso.co.il/SMP) publishes hourly SMP
+    with and without constraints; downloading requires manual export
+    from the portal (blocked to scrapers).  Once the CSV is dropped in
+    data/il_wholesale_smp.csv the function il_wholesale_price_at_hour_of_year
+    should be used instead.
     """
     assert 0 <= hour_of_day <= 23
     assert 0 <= day_of_week <= 6
     if _is_peak_hour(hour_of_day, day_of_week, month):
         return WHOLESALE_PEAK
     return WHOLESALE_OFFPEAK
+
+
+# -----------------------------------------------------------------------------
+# Israeli ancillary services (frequency regulation, spinning reserve).
+# NOGA launched Israel's first ancillary services market in March 2024.
+# As of June 2026 there is no publicly-published tariff or clearing
+# price for aggregators.  IL_ANCILLARY_NIS_PER_EV_YR is held at None to
+# prevent any code path from silently substituting a UK Sciurus figure
+# in an Israeli V2G revenue calculation.
+# -----------------------------------------------------------------------------
+IL_ANCILLARY_NIS_PER_EV_YR: float | None = None   # unavailable, do NOT invent
+IL_ANCILLARY_STATUS = "market opened March 2024; no public tariff yet"
 
 
 # -----------------------------------------------------------------------------

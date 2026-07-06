@@ -1,4 +1,4 @@
-"""W8 battery aging diagnostic plot.
+"""Battery aging diagnostic plot.
 
 Runs the V2G fleet, then extrapolates the weekly aging to a 10-year horizon
 to make the (per-hour) tiny effects visible.

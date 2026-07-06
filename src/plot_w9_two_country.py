@@ -1,6 +1,6 @@
-"""W9.G two-country business model plot.
+"""Two-country business model plot.
 
-Renders side-by-side Israel and UK results from a single run of the W9
+Renders side-by-side Israel and UK results from a single run of the
 fleet engine.  Six panels (2 rows x 3 columns):
 
   (a) Israel driver annual benefit per typology  (V1G + V2G)

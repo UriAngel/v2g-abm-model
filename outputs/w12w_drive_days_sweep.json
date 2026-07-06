@@ -1,0 +1,112 @@
+{
+  "results": [
+    {
+      "D": 0,
+      "dc_mean_all": 3178.246262242201,
+      "dc_mean_optin": 7037.545294964873,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3622.669493739277,
+      "bev_mean_optin": 6916.00539713862,
+      "bev_n_optin": 11,
+      "wall_time_s": 4.336150169372559
+    },
+    {
+      "D": 1,
+      "dc_mean_all": 3066.1531156048663,
+      "dc_mean_optin": 6789.339041696489,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3631.704649161858,
+      "bev_mean_optin": 6933.254330218092,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.634610652923584
+    },
+    {
+      "D": 2,
+      "dc_mean_all": 2974.6766517615856,
+      "dc_mean_optin": 6586.784014614939,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3624.4688186961152,
+      "bev_mean_optin": 6919.44047205622,
+      "bev_n_optin": 11,
+      "wall_time_s": 5.380399703979492
+    },
+    {
+      "D": 3,
+      "dc_mean_all": 2867.4542938213235,
+      "dc_mean_optin": 6349.363079175788,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3611.1299056904168,
+      "bev_mean_optin": 6893.975274499887,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.0641367435455322
+    },
+    {
+      "D": 4,
+      "dc_mean_all": 2760.94867891936,
+      "dc_mean_optin": 6113.529217607154,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3625.818862887545,
+      "bev_mean_optin": 6922.017829148949,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.056525945663452
+    },
+    {
+      "D": 4.74,
+      "dc_mean_all": 2684.303909815459,
+      "dc_mean_optin": 5943.81580030566,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3618.1202688984204,
+      "bev_mean_optin": 6907.320513351529,
+      "bev_n_optin": 11,
+      "wall_time_s": 6.848971128463745
+    },
+    {
+      "D": 5,
+      "dc_mean_all": 2656.290127432998,
+      "dc_mean_optin": 5881.785282173068,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3598.171917694787,
+      "bev_mean_optin": 6869.23729741732,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.6511054039001465
+    },
+    {
+      "D": 6,
+      "dc_mean_all": 2551.715110385449,
+      "dc_mean_optin": 5650.226315853493,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3585.608699731774,
+      "bev_mean_optin": 6845.252972215205,
+      "bev_n_optin": 11,
+      "wall_time_s": 5.418057918548584
+    },
+    {
+      "D": 6.43,
+      "dc_mean_all": 2493.2714944222566,
+      "dc_mean_optin": 5520.815451934997,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3577.0884377058546,
+      "bev_mean_optin": 6828.98701743845,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.219529390335083
+    },
+    {
+      "D": 7,
+      "dc_mean_all": 2413.35113359406,
+      "dc_mean_optin": 5343.848938672561,
+      "dc_n_optin": 14,
+      "bev_mean_all": 3566.3398404255367,
+      "bev_mean_optin": 6808.466968085116,
+      "bev_n_optin": 11,
+      "wall_time_s": 3.0702457427978516
+    }
+  ],
+  "fleet": {
+    "Daily Charger": 31,
+    "Public Charger": 23,
+    "BEV 2nd Vehicle": 21,
+    "Threshold Charger": 45
+  },
+  "country": "Israel",
+  "counterfactual": "V2G"
+}

@@ -1,6 +1,6 @@
 """Vehicle catalogue with country-specific market shares.
 
-W8 Batch E.  Each EVAgent samples a vehicle from a country-specific
+Each EVAgent samples a vehicle from a country-specific
 distribution and inherits the vehicle's battery chemistry and usable
 capacity.  Chemistry then drives the aging coefficients in
 `battery_aging.py`.
@@ -45,22 +45,25 @@ VEHICLE_CATALOG = {
 # Both dictionaries must sum to ~1.0; tiny rounding is acceptable.
 
 MARKET_SHARES_ISRAEL = {
-    "BYD Atto 3":           0.20,
-    "Jaecoo 7":             0.18,
-    "MG 4":                 0.12,
-    "Tesla Model Y NMC":    0.08,
-    "Tesla Model Y LFP":    0.06,
-    "Tesla Model 3 LFP":    0.05,
-    "BYD Seal":             0.05,
-    "Hyundai Ioniq 5":      0.06,
-    "Hyundai Kona":         0.04,
-    "VW ID.4":              0.05,
+    # Anchored to Xinhua Jan 2025 2024-actuals; Chinese OEMs ~69% of the market.
+    # BYD 16,690 units (top), Tesla 8,202, MG 6,276 among ~60k Israeli EV market.
+    "BYD Atto 3":           0.22,   # BYD top seller
+    "Jaecoo 7":             0.16,
+    "MG 4":                 0.10,   # ~10% actual
+    "Tesla Model Y NMC":    0.05,   # Tesla ~14% total; Y NMC portion
+    "Tesla Model Y LFP":    0.05,
+    "Tesla Model 3 LFP":    0.04,
+    "BYD Seal":             0.08,
+    "Hyundai Ioniq 5":      0.05,
+    "Hyundai Kona":         0.03,
+    "VW ID.4":              0.04,
     "VW ID.3":              0.03,
-    "Audi Q4 e-tron":       0.03,
+    "Audi Q4 e-tron":       0.02,
     "BMW i4":               0.02,
-    "Kia EV6":              0.02,
+    "Kia EV6":              0.03,
     "BMW iX1":              0.01,
 }
+# Chinese OEM total ~64% (BYD+Jaecoo+MG); Tesla ~14 %; Korean+German ~22 %.
 
 MARKET_SHARES_UK = {
     "Tesla Model Y NMC":    0.20,

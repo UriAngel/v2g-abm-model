@@ -1,14 +1,17 @@
-"""W8 SEM funnel plot.
+"""SEM funnel plot.
 
 For each typology, simulate a large sample of agents and show what
 percentage pass each downstream gate on the way to actually doing V2G.
 
-Gates (in order, every gate must be passed for the next):
+Gates (in order, every gate must be passed for the next).
+
+The model uses an independent aggregator, so there is no retailer
+gate; the tied-retailer variant is a sensitivity option only.
+
   Gate 1: V2G-capable (has a home charger)
   Gate 2: Positive Attitude towards V2G (Attitude > 0)
   Gate 3: Positive Intention to use V2G (Intention > 0)  =  opted in
-  Gate 4: On the aggregator's contracted retailer (IEC by default)
-  Gate 5: Actually discharges during the simulated week (kWh sold > 0)
+  Gate 4: Actually discharges during the simulated week (kWh sold > 0)
 
 Output: w8_sem_funnel.png  -- one panel per typology, each showing the
 five gates as horizontal bars with percentages.
@@ -40,20 +43,20 @@ HOURS_IN_WEEK = 168
 
 GATE_COLORS = [
     "#9ca3af",   # total (grey)
-    "#3b82f6",   # V2G-capable (blue)
     "#10b981",   # positive Attitude (green)
     "#16a34a",   # positive Intention (darker green)
-    "#f59e0b",   # passes retailer gate (amber)
     "#dc2626",   # actually discharges (red)
 ]
 GATE_LABELS = [
-    "Total agents sampled",
-    "Gate 1: V2G-capable (home charger)",
-    "Gate 2: Attitude > 0",
-    "Gate 3: Intention > 0 (opted in)",
-    f"Gate 4: Retailer = {AGGREGATOR_CONTRACTED_RETAILER}",
-    "Gate 5: Actually discharges (>0 kWh)",
+    "Total V2G-capable agents",
+    "Gate 1: Attitude > 0",
+    "Gate 2: Intention > 0 (opted in)",
+    "Gate 3: Actually discharges (>0 kWh)",
 ]
+# Public Charger has 0 % v2g-capable (no home charger by typology) so we
+# drop it from the funnel panel - it is shown in the structural-zero
+# narrative instead.
+TYPOLOGIES_TO_PLOT = ("Daily Charger", "BEV 2nd Vehicle", "Threshold Charger")
 
 
 def sample_and_simulate(typology: str, n: int) -> list[dict]:
@@ -83,22 +86,18 @@ def sample_and_simulate(typology: str, n: int) -> list[dict]:
 
 
 def funnel_counts(recs: list[dict]) -> list[int]:
-    """Return the count of agents passing each cumulative gate."""
-    n = len(recs)
-    counts = [n]
-    # gate 1: v2g_capable
+    """Return the count of agents passing each cumulative gate.
+
+    The funnel is based on the V2G-capable sub-sample only, because
+    V2G capability is typology-determined, not a behavioural filter.
+    There is no retailer gate (independent aggregator).
+    """
     survivors = [r for r in recs if r["v2g_capable"]]
-    counts.append(len(survivors))
-    # gate 2: positive Attitude (cumulative)
+    counts = [len(survivors)]
     survivors = [r for r in survivors if r["attitude_pos"]]
     counts.append(len(survivors))
-    # gate 3: positive Intention (cumulative)
     survivors = [r for r in survivors if r["intention_pos"]]
     counts.append(len(survivors))
-    # gate 4: on IEC
-    survivors = [r for r in survivors if r["on_iec_retailer"]]
-    counts.append(len(survivors))
-    # gate 5: actually discharges
     survivors = [r for r in survivors if r["discharges"]]
     counts.append(len(survivors))
     return counts
@@ -111,15 +110,16 @@ def draw_funnel(ax, typology: str, counts: list[int]) -> None:
     ax.barh(y, percentages, color=GATE_COLORS, edgecolor="white", linewidth=0.5)
     for yi, (label, pct, cnt) in enumerate(zip(GATE_LABELS, percentages, counts)):
         y_pos = len(counts) - 1 - yi
-        ax.text(pct + 1.5, y_pos, f"{pct:.0f}%   ({cnt}/{total})",
-                fontsize=9, va="center")
+        ax.text(pct + 2, y_pos, f"{pct:.0f}%   ({cnt}/{total})",
+                fontsize=12, va="center", fontweight="bold")
     ax.set_yticks(y)
-    ax.set_yticklabels(GATE_LABELS, fontsize=9)
-    ax.set_xlim(0, 115)
-    ax.set_xlabel("Share of sample (%)")
-    ax.set_title(typology, fontsize=12, fontweight="bold")
+    ax.set_yticklabels(GATE_LABELS, fontsize=12)
+    ax.set_xlim(0, 125)
+    ax.set_xlabel("Share of V2G-capable sample (%)", fontsize=11)
+    ax.set_title(typology, fontsize=14, fontweight="bold")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.tick_params(axis="x", labelsize=10)
 
 
 def main() -> None:
@@ -130,15 +130,23 @@ def main() -> None:
         all_counts[typology] = funnel_counts(recs)
         print(f"  {typology:<20}  done")
 
-    fig, axes = plt.subplots(2, 2, figsize=(18, 11))
-    for ax, typology in zip(axes.flat, ALL_TYPOLOGIES):
+    fig, axes = plt.subplots(1, 3, figsize=(20, 6.0))
+    for ax, typology in zip(axes, TYPOLOGIES_TO_PLOT):
         draw_funnel(ax, typology, all_counts[typology])
 
     fig.suptitle(
-        f"V2G participation funnel per typology  (n = {SAMPLES_PER_TYPOLOGY} per typology, retailer gate ON)",
-        fontsize=14, fontweight="bold",
+        f"V2G participation funnel per typology  "
+        f"(n = {SAMPLES_PER_TYPOLOGY} per typology, V2G-capable subsample, "
+        f"independent aggregator)",
+        fontsize=15, fontweight="bold",
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.text(0.5, 0.01,
+             "Public Charger omitted (no home charger by typology -> 0 % "
+             "V2G-capable).  Discharge gate = 100 % of opted-in agents = "
+             "by construction in a 1-week sim with daily peak windows; "
+             "the meaningful filters are Attitude and Intention.",
+             ha="center", fontsize=10, color="#555", style="italic")
+    fig.tight_layout(rect=(0, 0.05, 1, 0.94))
 
     out = OUTPUTS_DIR / "w8_sem_funnel.png"
     fig.savefig(out, dpi=150, facecolor="white")
@@ -147,7 +155,7 @@ def main() -> None:
     # Print numeric summary
     print()
     print(f"{'Typology':>20} | " + " | ".join(f"{g:>15}" for g in
-        ["total", "V2G-capable", "Attitude>0", "Intention>0", "on IEC", "discharges"]))
+        ["total", "V2G-capable", "Attitude>0", "Intention>0", "discharges"]))
     print("-" * 120)
     for typology in ALL_TYPOLOGIES:
         c = all_counts[typology]

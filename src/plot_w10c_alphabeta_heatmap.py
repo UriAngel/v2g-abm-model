@@ -1,4 +1,4 @@
-"""W10.C.3 sensitivity heatmap for the (alpha, beta) fleet sweep.
+"""Sensitivity heatmap for the (alpha, beta) fleet sweep.
 
 Two-panel heatmap: GWh/year on the left, M NIS/year on the right.
 Annotates the (today, beta_low) and (2030 target, beta_mid) cells so
@@ -78,13 +78,13 @@ def draw_heatmap(ax, data: np.ndarray, n_evs: np.ndarray, title: str,
                         xytext=(j, i + 0.55), ha="center",
                         fontsize=8, color="#dc2626", fontweight="bold")
 
-    # Snap canonical values onto the grid
-    a_today = min(ALPHA_GRID, key=lambda a: abs(a - ALPHA_TODAY))
-    a_2030  = min(ALPHA_GRID, key=lambda a: abs(a - ALPHA_2030))
-    b_low   = min(BETA_GRID, key=lambda b: abs(b - BETA_LOW))
-    b_mid   = min(BETA_GRID, key=lambda b: abs(b - BETA_MID))
-    mark(a_today, b_low, "today")
-    mark(a_2030,  b_mid, "2030 target")
+    # Do not mark "today".  Real V2G penetration in Israel is
+    # below the smallest cell on this grid (< 5 % alpha and a few % beta),
+    # so a "today" annotation would overstate where the market actually
+    # is.  Mark only the 2030 policy-target POTENTIAL.
+    a_2030 = min(ALPHA_GRID, key=lambda a: abs(a - ALPHA_2030))
+    b_mid  = min(BETA_GRID, key=lambda b: abs(b - BETA_MID))
+    mark(a_2030, b_mid, "2030 policy POTENTIAL")
 
 
 def main() -> None:

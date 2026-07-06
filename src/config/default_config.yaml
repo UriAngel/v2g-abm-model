@@ -51,6 +51,6 @@ target_soc_by_typology:
 # §3.5 — physical constants
 ev_physics:
   consumption_kwh_per_km: 0.18      # FIXED
-  v2g_soc_floor: 0.50               # §3.6  Hoke 2026 — TUNABLE in sensitivity
+  v2g_soc_floor: 0.50               # §3.6  Wong 2026 — TUNABLE in sensitivity
   range_anxiety_floor_mean: 0.30    # §3.6  TUNABLE
   range_anxiety_floor_std: 0.10     # §3.6  TUNABLE

@@ -1,4 +1,4 @@
-"""W7 plot — five charts for the Monday demo.
+"""Demo plots — five charts from the 20-car weekly demo.
 
   1. outputs/w7_a_single_car.png
        2×2 grid, one car per typology, three counterfactual lines per panel.
@@ -15,7 +15,7 @@
        Running total cash flow (₪) across the fleet over the week,
        one line per counterfactual.
 
-  5. outputs/w7_soc_three_counterfactuals.png  (legacy — Daily Charger only)
+  5. outputs/w7_soc_three_counterfactuals.png  (single-panel — Daily Charger only)
 
 Usage
 -----
@@ -329,7 +329,7 @@ def plot_cumulative_money() -> None:
 
 
 # ============================================================================
-#  Legacy single-panel chart (Daily Charger only) — kept for backwards compat
+#  Single-panel chart (Daily Charger only)
 # ============================================================================
 
 def plot_legacy_single() -> None:
@@ -350,7 +350,7 @@ def plot_legacy_single() -> None:
             linestyle=COUNTERFACTUAL_LINESTYLES[cf],
             linewidth=1.8,
         )
-    ax.set_title("V0 vs V1G vs V2G — Daily Charger only (legacy single-panel view)")
+    ax.set_title("V0 vs V1G vs V2G — Daily Charger only (single-panel view)")
     ax.set_xlabel("Hour of simulated week")
     ax.set_ylabel("State of charge (%)")
     ax.set_xticks([d * 24 for d in range(8)])

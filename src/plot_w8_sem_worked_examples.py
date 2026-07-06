@@ -1,4 +1,4 @@
-"""W8 SEM worked-example plot.
+"""SEM worked-example plot.
 
 Picks four representative agents (one per typology) and draws a full
 "calculation card" for each so the SEM math is completely visible.

@@ -1,4 +1,4 @@
-"""W8 SEM effect plot.
+"""SEM effect plot.
 
 Runs the 20-car fleet twice for the V2G counterfactual:
   Scenario A: SEM disabled.  Everyone opts in.  OSP is a flat 1.00 NIS/kWh.

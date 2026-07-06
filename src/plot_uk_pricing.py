@@ -1,4 +1,4 @@
-"""Simple 24-hour UK pricing visualisation for the supervisor deck.
+"""Simple 24-hour UK pricing visualisation for the deck.
 
 Shows V0 (Ofgem cap, flat), V1G (Octopus Go), V2G (Octopus Go import
 with Powerloop export overlay) across a single day.
@@ -6,6 +6,8 @@ with Powerloop export overlay) across a single day.
 
 from pathlib import Path
 import matplotlib.pyplot as plt
+from src.plot_style import apply_style
+apply_style()
 import numpy as np
 from src.pricing_uk import (
     OFGEM_CAP_RATE_GBP, OCTOPUS_GO_OFFPEAK_GBP, OCTOPUS_GO_PEAK_GBP,

@@ -1,9 +1,9 @@
-"""W10.A.3 battery aging plot.
+"""Battery aging plot.
 
-David's M6 ask: show V2G discharge as its own visible layer on cycle aging,
-so the V2G aging penalty is readable directly against the V0/V1G baselines.
+Shows V2G discharge as its own visible layer on cycle aging, so the
+V2G aging penalty is readable directly against the V0/V1G baselines.
 
-Calendar aging is now flat per hour (W10.A.2) so it is identical across
+Calendar aging is flat per hour, so it is identical across
 typologies and counterfactuals; the visible spread comes from cycle aging.
 
 Layout: 4 typologies on the x-axis, 3 grouped bars per typology
@@ -137,7 +137,7 @@ def main() -> None:
     ax.set_ylabel("Cumulative SoH loss over 10 years (%)", fontsize=11)
     ax.set_title(
         "Battery aging by typology and counterfactual  -  V2G discharge layer broken out\n"
-        "Calendar aging is flat (W10.A.2); V2G penalty visible only in V2G column",
+        "Calendar aging is flat; V2G penalty visible only in V2G column",
         fontsize=12, fontweight="bold",
     )
     ax.legend(loc="upper left", fontsize=9, framealpha=0.95)

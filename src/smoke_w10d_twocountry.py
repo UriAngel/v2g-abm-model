@@ -1,8 +1,8 @@
-"""W10.D smoke test: two-country, three-counterfactual end-to-end.
+"""Smoke test: two-country, three-counterfactual end-to-end.
 
-Confirms GridAgent + UK pricing both lock after the W10.B aggregator
-refactor.  Runs Israel (TAOZ) and UK (Ofgem cap / Octopus Go /
-Powerloop) for each of V0, V1G, V2G, prints headline fleet results.
+Confirms GridAgent and UK pricing work together end-to-end.  Runs
+Israel (TAOZ) and UK (Ofgem cap / Octopus Go / Powerloop) for each
+of V0, V1G, V2G, prints headline fleet results.
 
 Run:  python -m src.smoke_w10d_twocountry
 """
@@ -78,7 +78,7 @@ def main() -> None:
             rows.append(summarise(country, cf))
 
     print()
-    print(f"W10.D end-to-end fleet test (240 agents x 8760 hours)")
+    print(f"End-to-end fleet test (240 agents x 8760 hours)")
     print(f"{'-' * 100}")
     hdr = (f"{'Country':>8} | {'CF':>4} | {'V2G EVs':>8} | "
            f"{'V2G kWh/yr':>11} | {'Import':>11} | {'Revenue':>10} | "

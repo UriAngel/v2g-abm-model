@@ -31,34 +31,126 @@ currently embed seasonal structure for residential customers.
 # Rates (GBP per kWh)
 # ----------------------------------------------------------------------
 
-# W10.G: rate refresh against current public Octopus / Ofgem pages
-# (verified via web search June 2026).  Historic Q2 2025 values kept
-# as comments for traceability against the older W9.E commit.
+# Rates verified against the public Octopus / Ofgem pages (June 2026).
+# Historic Q2 2025 values noted in comments for traceability.
 
 # Ofgem default tariff cap, Apr-Jun 2026 (E&W&S average, direct debit,
-# VAT inclusive).  Was 0.245 in Q2 2025, now 0.2467.
+# VAT inclusive).  Q2 2025 value: 0.245.
 OFGEM_CAP_RATE_GBP = 0.2467
 
 # Octopus Go / Intelligent Octopus Go (V1G smart-charging tariff).
-# Was 0.085 / 0.281 in 4-h window in W9.E.  Public rate as of June 2026:
+# (2025 tariff generation: 8.5 p off-peak / 28.1 p peak, 4-h window.)
+# Public rate as of June 2026:
 #   - Intelligent Octopus Go: 7p off-peak, 5- or 6-h smart window
 #   - Standard Octopus Go:    6.99-9.5p off-peak depending on region
 #   - Peak: 31.64p
 # We use the headline Intelligent Go figures because they're the
 # product Octopus is actively marketing for V2G drivers.
 OCTOPUS_GO_OFFPEAK_GBP = 0.070   # 7 p, Intelligent Octopus Go
-OCTOPUS_GO_PEAK_GBP    = 0.3164  # 31.64 p (was 28.1 p)
+OCTOPUS_GO_PEAK_GBP    = 0.3164  # 31.64 p
 OCTOPUS_GO_OFFPEAK_START_HOUR = 0    # rounded from 23:30
 OCTOPUS_GO_OFFPEAK_END_HOUR   = 6    # rounded to 05:30, exclusive (6 h window)
+
+# UK day-ahead wholesale curve from the BMRS Elexon API (June 2026 pull).
+# Real data pulled from 25 June 2025 to 25 June 2026, APX MID provider,
+# 17,084 deduplicated half-hour observations.  Endpoint:
+#   https://data.elexon.co.uk/bmrs/api/v1/balancing/pricing/market-index
+#
+# Two access paths exposed below:
+#
+#   uk_wholesale_price_at_hour_of_year(hour_of_year)
+#       Returns the REAL price for that specific hour of the simulated
+#       year.  This is what the simulator should call when running an
+#       annual horizon.  Uses the BMRS CSV under data/.
+#
+#   UK_WHOLESALE_24H_GBP
+#       The hour-of-day MEAN across the year, used by plots that
+#       need a "typical day".
+#
+# Annual mean of the 24 hour-of-day means: 8.47 p/kWh.
+# Peak/off-peak spread: 7.24 p (03 h) -> 10.67 p (18 h), ~1.47x.
+
+UK_WHOLESALE_24H_GBP = [
+    0.0775, 0.0757, 0.0737, 0.0724, 0.0729, 0.0780,  # 00-05
+    0.0845, 0.0911, 0.0901, 0.0845, 0.0825, 0.0780,  # 06-11
+    0.0766, 0.0750, 0.0756, 0.0820, 0.0887, 0.1006,  # 12-17
+    0.1067, 0.1058, 0.1013, 0.0936, 0.0864, 0.0793,  # 18-23
+]
+
+# Lazy-loaded BMRS year series (hour_of_year -> price in GBP/kWh)
+_BMRS_YEAR_HOURLY: list[float] | None = None
+
+
+def _load_bmrs_year_hourly() -> list[float]:
+    """Load BMRS year CSV and aggregate half-hourly -> hourly means.
+
+    Returns a list of length 8760 (or shorter if data has gaps).
+    Hour 0 of the series corresponds to 25 June 2025 hour 0; the
+    simulator's hour_of_year=0 maps to series index 0.
+    """
+    import csv
+    from pathlib import Path
+    here = Path(__file__).resolve().parent.parent
+    csv_path = here / "data" / "uk_wholesale_2025_2026.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(
+            f"BMRS CSV missing.  Run python -m src.build_bmrs_year_csv first.\n"
+            f"Expected at: {csv_path}"
+        )
+    # Build a dict keyed by (date, hour_of_day) -> list of prices
+    from collections import defaultdict
+    bucket: dict[tuple[str, int], list[float]] = defaultdict(list)
+    with csv_path.open() as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row["settlement_date"], int(row["hour_of_day"]))
+            bucket[key].append(float(row["price_gbp_per_kwh"]))
+    # Sort dates ascending, build the 8760-length series
+    sorted_keys = sorted(bucket.keys())
+    series: list[float] = []
+    annual_mean = sum(sum(v) for v in bucket.values()) / sum(len(v) for v in bucket.values())
+    for key in sorted_keys:
+        vals = bucket[key]
+        series.append(sum(vals) / len(vals))
+    # Pad to 8760 with the annual mean if any gap remains
+    while len(series) < 8760:
+        series.append(annual_mean)
+    return series[:8760]
+
+
+def uk_wholesale_price_at_hour_of_year(hour_of_year: int) -> float:
+    """Real BMRS-derived wholesale price for the given hour of year.
+
+    hour_of_year 0 corresponds to 25 June 2025 hour 0 (the BMRS pull
+    start).  The simulator should wire its hour_of_year directly to
+    this function when running wholesale scenarios.
+    """
+    global _BMRS_YEAR_HOURLY
+    if _BMRS_YEAR_HOURLY is None:
+        _BMRS_YEAR_HOURLY = _load_bmrs_year_hourly()
+    return _BMRS_YEAR_HOURLY[hour_of_year % 8760]
+
+
+def uk_wholesale_price_at_hour(hour_of_day: int,
+                               day_of_week: int = 0,
+                               month: int = 1) -> float:
+    """UK day-ahead wholesale price (GBP/kWh) for the given hour.
+
+    Shape encoded from N2EX / EPEX SPOT typical 2026 hourly profile.
+    Annual average ~9.8 p/kWh.  Source: energy-stats.uk live tracker,
+    BMRS Elexon market index prices.  This is a static profile - for
+    a true day-ahead model, swap with a CSV import.
+    """
+    return UK_WHOLESALE_24H_GBP[hour_of_day]
+
 
 # Octopus Powerloop -> rebranded to Octopus Power Pack in 2026.
 # Old Powerloop (Sciurus trial 2021): 21.4 p export, 16-19 window.
 # Current Power Pack: "free miles" model; standard outgoing export
 # rate is 12 p/kWh from March 2026.  We use 12 p as the V2G export
 # rate the driver effectively receives, applied across the same
-# afternoon-to-evening peak window for compatibility with the W9
-# model structure.
-POWERLOOP_EXPORT_GBP   = 0.12    # was 0.214 p (Sciurus trial era)
+# afternoon-to-evening peak window as in the model structure.
+POWERLOOP_EXPORT_GBP   = 0.12    # Power Pack rate (Sciurus-trial-era Powerloop: 0.214)
 POWERLOOP_DISCHARGE_START_HOUR = 16
 POWERLOOP_DISCHARGE_END_HOUR   = 19   # exclusive
 

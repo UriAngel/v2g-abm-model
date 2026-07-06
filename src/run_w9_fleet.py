@@ -1,7 +1,7 @@
-"""W9 fleet runner with GridAgent transformer constraint and OSP-priority
+"""Fleet runner with GridAgent transformer constraint and OSP-priority
 discharge dispatch.
 
-Two differences from the W7-W8 demo runner:
+Two differences from the weekly demo runner (run_demo.py):
 
   1. Annual horizon (8,760 hours) with seasonal TAOZ dispatch.
   2. Each hour, agents within a feeder step in ASCENDING OSP order
@@ -10,7 +10,7 @@ Two differences from the W7-W8 demo runner:
      by the feeder transformer constraint log "IDLE_GRID_LIMITED" and
      no energy or money changes hands.
 
-This runner is independent of run_demo.py so the W7-W8 weekly demo can
+This runner is independent of run_demo.py so the weekly demo can
 still be replayed for comparison.
 """
 
@@ -77,8 +77,14 @@ def build_fleet(
     country: str,
     counterfactual: str,
     shares: dict | None = None,
+    run_seed: int = 0,
 ) -> list[EVAgent]:
-    """Build the fleet of EVAgents for one (country, counterfactual) run."""
+    """Build the fleet of EVAgents for one (country, counterfactual) run.
+
+    run_seed propagates into every agent's personal RNG so Monte
+    Carlo runs draw different realisations.  run_seed=0 gives the
+    single-realisation baseline.
+    """
     ev_agent_module.SEM_ENABLED = True
     shares = shares or DEFAULT_FLEET_SHARES
     agents: list[EVAgent] = []
@@ -90,6 +96,7 @@ def build_fleet(
                 typology=typology,
                 counterfactual=counterfactual,
                 country=country,
+                run_seed=run_seed,
             )
             agents.append(a)
             next_id += 1
@@ -103,12 +110,13 @@ def run_year(
     transformer_kva: float = DEFAULT_TRANSFORMER_KVA,
     agents_per_feeder: int = DEFAULT_AGENTS_PER_FEEDER,
     verbose: bool = True,
+    run_seed: int = 0,
 ) -> dict:
     """Simulate one (country, counterfactual) run for a full year.
 
     Returns a dict with the fleet, per-agent results, and feeder stats.
     """
-    agents = build_fleet(country, counterfactual, shares)
+    agents = build_fleet(country, counterfactual, shares, run_seed=run_seed)
     feeders = build_feeders(
         agents,
         agents_per_feeder=agents_per_feeder,
@@ -153,7 +161,7 @@ def run_year(
 
 
 if __name__ == "__main__":
-    # W9.F sanity gate: run Israel V2G for one year, report feeder stats.
+    # Sanity gate: run Israel V2G for one year, report feeder stats.
     out = run_year(country="Israel", counterfactual=COUNTERFACTUAL_V2G)
     print("\n=== Feeder stats (Israel V2G) ===")
     for fs in out["feeder_stats"]:

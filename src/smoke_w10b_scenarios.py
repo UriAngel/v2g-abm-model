@@ -1,14 +1,14 @@
-"""W10.B.3 smoke test: V2G economics under retail vs wholesale revenue.
+"""Smoke test: V2G economics under retail vs wholesale revenue.
 
-After dropping the aggregator-retailer coupling per David M6, the model
-exposes two clean scenarios for V2G revenue per kWh:
+With no aggregator-retailer coupling, the model exposes two clean
+scenarios for V2G revenue per kWh:
 
   - retail    : driver receives the retail TAOZ tariff (peak/off-peak)
   - wholesale : driver receives the wholesale system-marginal-cost rate
 
-Driver keeps 100% of revenue in both scenarios.  The aggregator dispatch
-window is gone; the agent discharges any hour where the offered price
-exceeds its SEM-derived OSP.
+Driver keeps 100% of revenue in both scenarios.  There is no
+aggregator dispatch window; the agent discharges any hour where the
+offered price exceeds its SEM-derived OSP.
 
 Run:  python -m src.smoke_w10b_scenarios
 """
@@ -70,7 +70,7 @@ def run_one(typology: str, scenario: str) -> dict:
 def main() -> None:
     ev_agent_module.SEM_ENABLED = True
 
-    print(f"W10.B smoke test - retail vs wholesale V2G revenue")
+    print(f"Smoke test - retail vs wholesale V2G revenue")
     print(f"({N_AGENTS} agents per cell, one calendar week, NIS)")
     print()
     hdr = (f"{'Typology':>20} | {'Scenario':>9} | {'OptIn':>6} | "

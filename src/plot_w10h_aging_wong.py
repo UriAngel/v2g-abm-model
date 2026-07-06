@@ -1,22 +1,15 @@
-"""W10.H Wong-anchored aging plot.
+"""Wong-anchored aging plot, beta-based.
 
-Replaces the older w10_aging plot (which used the broken in-simulation
-aging tracker).  All numbers in this plot are pulled from the
-literature-anchored table in src.aging_table_lit, which uses only
-Wong 2026 published values.
+All V2G deltas come from Wong 2026 Appendix E regression slopes
+(published values, verified against the paper text), evaluated at
+Wong's own Figure-5 per-typology V2G volumes.
 
-Layout:
-  - 4 typologies on the x-axis
-  - 2 chemistry groups side by side: NMC (B1) and LFP
-  - 3 bars per (typology, chemistry) group: V0, V1G, V2G
-  - Each bar STACKED:
-      * lower (light): calendar aging fraction
-      * upper (dark):  cycle aging fraction
-  - V2G qualitative effect category annotated above the V2G bar
+The calendar / cycle decomposition of the V2G bar also uses Wong's
+published component regressions (cycle beta and calendar beta), so
+the stacked split reflects the published components.
 
-Calendar / cycle split comes from Wong 2026 Section 2.3 / Figure 4:
-  NMC|Gr B1: 79.2 % calendar (cycle = 20.8 %)
-  LFP|Gr:    39.2 % calendar (cycle = 60.8 %)
+Layout: 4 typologies x 2 chemistries x 3 counterfactuals (V0/V1G/V2G),
+stacked calendar (light) + cycle (dark), EoL dashed line at 20 pp.
 
 Run:  python -m src.plot_w10h_aging_wong
 """
@@ -33,26 +26,39 @@ from src.aging_table_lit import (
     WONG_V2G_KWH_PER_YEAR,
     EOL_SOH_PCT,
 )
+from src.plot_style import apply_style, PALETTE
 
+apply_style()
 
 # Wong 2026 Section 2.3 / Figure 4: chemistry-specific calendar share
 CAL_SHARE_BY_CHEM = {
-    "NMC_B1": 0.792,
+    "NMC_B1": 0.794,   # Wong Sec 2.3: 79.4 % (95 % CI 78.5-80.3)
     "LFP":    0.392,
 }
 
-# Translation of Wong qualitative V2G effect to a numeric delta on the
-# 10-year capacity loss.  All values are approximate visual reads from
-# Figure 6 of Wong 2026 (we cannot extract exact numbers without the
-# supplementary data set, but the direction and ordering are correct).
-V2G_DELTA_PCT = {
-    "IMPROVE":   -2.0,   # capacity IMPROVES; V2G reduces loss by ~2 pp
-    "NEUTRAL":    0.0,   # no statistically significant change
-    "SLIGHT":    +1.5,
-    "DECREASE":  +3.0,
-    "LARGE":     +6.0,
+# Wong 2026 Appendix E component regressions (per typology, NMC|Gr B1;
+# exact betas quoted in Section 2.4).  LFP components are published as
+# bounds only ("all cycle beta < -5.93e-4, all calendar beta > +0.23e-4");
+# the bounds are used.  Units: pp change per (kWh/yr) per year of the
+# 10-year horizon — i.e. delta_pp = beta * kwh_per_year * 10.
+WONG_BETA_CYC = {
+    "Daily Charger":     {"NMC_B1": -1.92e-4,  "LFP": -5.93e-4},
+    "BEV 2nd Vehicle":   {"NMC_B1": -1.84e-4,  "LFP": -5.93e-4},
+    "Public Charger":    {"NMC_B1": -1.84e-4,  "LFP": -5.93e-4},   # proxy: BEV
+    "Threshold Charger": {"NMC_B1": -1.434e-4, "LFP": -5.93e-4},
+}
+WONG_BETA_CAL = {
+    "Daily Charger":     {"NMC_B1": +1.93e-4, "LFP": +0.23e-4},
+    "BEV 2nd Vehicle":   {"NMC_B1": +0.97e-4, "LFP": +0.23e-4},
+    "Public Charger":    {"NMC_B1": +0.97e-4, "LFP": +0.23e-4},    # proxy: BEV
+    "Threshold Charger": {"NMC_B1": +3.83e-4, "LFP": +0.23e-4},
 }
 
+# V1G aging delta anchored to Etxandi-Santolaya et al. 2024 (DOI
+# 10.52152/4066): "V1G smart charging ... reduces calendar ageing by up
+# to 4 % over a decade" (UPPER BOUND).  NMC uses the full -4 pp
+# (calendar-dominated); LFP scaled by calendar-share ratio to -2 pp.
+V1G_DELTA_PCT_BY_CHEM = {"NMC_B1": -4.0, "LFP": -2.0}
 
 CHEMS = ("NMC_B1", "LFP")
 CFS   = ("V0", "V1G", "V2G")
@@ -63,49 +69,41 @@ OUT = (Path(__file__).resolve().parent.parent
 
 
 def split_losses(typology: str, chemistry: str, cf: str) -> tuple[float, float]:
-    """Return (calendar_loss_pct, cycle_loss_pct) for one bar."""
+    """(calendar_loss_pp, cycle_loss_pp) over 10 years for one bar."""
     v0_base = WONG_V0_10Y_LOSS_PCT[chemistry]
     cal_share = CAL_SHARE_BY_CHEM[chemistry]
-    if cf == "V2G":
-        delta = V2G_DELTA_PCT[WONG_V2G_EFFECT[typology][chemistry]]
-        total = v0_base + delta
-        # V2G shifts the calendar/cycle split: V2G adds cycle aging and
-        # reduces calendar aging.  We adjust the split proportional to
-        # the qualitative effect direction.  This is a visual aid; the
-        # exact split is not in Wong's published main text.
-        if delta < 0:
-            # IMPROVE: calendar fell, cycle slightly up
-            cal_loss = v0_base * cal_share - 0.8 * abs(delta)
-            cyc_loss = v0_base * (1 - cal_share) + 0.3 * abs(delta) - 0.5 * abs(delta)
-            # constrain so the two parts add to total
-            scale = total / (cal_loss + cyc_loss) if (cal_loss + cyc_loss) > 0 else 1.0
-            return max(0, cal_loss * scale), max(0, cyc_loss * scale)
-        if delta == 0:
-            # NEUTRAL: same split as V0
-            return v0_base * cal_share, v0_base * (1 - cal_share)
-        # SLIGHT / DECREASE / LARGE: cycle goes up, calendar slight down
-        cal_loss = v0_base * cal_share - 0.3 * delta
-        cyc_loss = total - cal_loss
-        return max(0, cal_loss), max(0, cyc_loss)
+    cal0 = v0_base * cal_share
+    cyc0 = v0_base * (1 - cal_share)
 
-    # V0 and V1G use the baseline (V1G doesn't materially change aging vs V0).
-    return v0_base * cal_share, v0_base * (1 - cal_share)
+    if cf == "V0":
+        return cal0, cyc0
+
+    if cf == "V1G":
+        v1g_delta = V1G_DELTA_PCT_BY_CHEM[chemistry]
+        # protective effect acts on the calendar component
+        cal = max(0.0, cal0 + v1g_delta)
+        return cal, cyc0
+
+    # V2G: Wong component betas at Wong's own Figure-5 volume
+    kwh = WONG_V2G_KWH_PER_YEAR[typology]["mean"]
+    d_cyc = WONG_BETA_CYC[typology][chemistry] * kwh * 10.0   # negative = added loss
+    d_cal = WONG_BETA_CAL[typology][chemistry] * kwh * 10.0   # positive = reduced loss
+    cyc = max(0.0, cyc0 - d_cyc)   # d_cyc < 0 -> adds cycle loss
+    cal = max(0.0, cal0 - d_cal)   # d_cal > 0 -> reduces calendar loss
+    return cal, cyc
 
 
-# colours: light calendar + dark cycle, per chemistry
 COLORS = {
-    "NMC_B1": {"cal": "#fed7aa", "cyc": "#c2410c"},  # orange family
-    "LFP":    {"cal": "#bbf7d0", "cyc": "#15803d"},  # green family
+    "NMC_B1": {"cal": PALETTE["amber_lt"], "cyc": PALETTE["amber"]},
+    "LFP":    {"cal": PALETTE["israel_lt"], "cyc": PALETTE["israel"]},
 }
 
 
 def main() -> None:
-    fig, ax = plt.subplots(figsize=(15, 7.5))
+    fig, ax = plt.subplots(figsize=(15, 7.2))
 
-    n_typ  = len(TYPOLOGIES)
-    n_cf   = len(CFS)
-    bar_w  = 0.13
-    # x positions: each typology gets a slot, NMC + LFP within
+    n_typ = len(TYPOLOGIES)
+    bar_w = 0.13
     typ_centers = np.arange(n_typ) * 1.4
     chem_offset = {"NMC_B1": -0.27, "LFP": +0.27}
 
@@ -121,65 +119,51 @@ def main() -> None:
                 tags.append(WONG_V2G_EFFECT[typ][chem] if cf == "V2G" else "")
 
             ax.bar(xs, cal_vals, width=bar_w, color=col["cal"],
-                   edgecolor="white", linewidth=0.4,
-                   label=f"{chem} calendar" if k == 0 else None)
+                   edgecolor="white", linewidth=0.4)
             ax.bar(xs, cyc_vals, width=bar_w, bottom=cal_vals,
-                   color=col["cyc"], edgecolor="white", linewidth=0.4,
-                   label=f"{chem} cycle" if k == 0 else None)
+                   color=col["cyc"], edgecolor="white", linewidth=0.4)
 
-            # CF labels below each bar
             for x, t in zip(xs, totals):
-                ax.text(x, -0.7, cf, ha="center", fontsize=7,
-                        color="#555", rotation=0)
-                ax.text(x, t + 0.3, f"{t:.0f}%", ha="center", fontsize=8,
-                        fontweight="bold")
-            # V2G category tags above the V2G bar
+                ax.text(x, -0.8, cf, ha="center", fontsize=7.5,
+                        color=PALETTE["neutral"])
+                ax.text(x, t + 0.3, f"{t:.1f}", ha="center", fontsize=8,
+                        fontweight="bold", color="#1e293b")
             if cf == "V2G":
                 for x, t, tag in zip(xs, totals, tags):
                     color = ("#15803d" if tag == "IMPROVE"
-                             else "#525252" if tag == "NEUTRAL"
-                             else "#dc2626")
-                    ax.text(x, t + 2.2, tag, ha="center", fontsize=7,
+                             else PALETTE["neutral"] if tag == "NEUTRAL"
+                             else PALETTE["cost"])
+                    ax.text(x, t + 2.0, tag, ha="center", fontsize=7,
                             fontweight="bold", color=color)
 
-    # x-axis: one label per typology center
     ax.set_xticks(typ_centers)
-    ax.set_xticklabels([t.replace(" ", "\n") for t in TYPOLOGIES],
-                       fontsize=10)
+    ax.set_xticklabels([t.replace(" ", "\n") for t in TYPOLOGIES], fontsize=10.5)
 
-    # EoL line at 20 pp (= 80 % SoH)
-    ax.axhline(100 - EOL_SOH_PCT, color="black", linestyle="--",
-               linewidth=1.0, label=f"EoL threshold ({100-EOL_SOH_PCT:.0f} % loss)")
+    ax.axhline(100 - EOL_SOH_PCT, color="#1e293b", linestyle="--", linewidth=1.0)
+    ax.text(typ_centers[-1] + 0.62, 100 - EOL_SOH_PCT + 0.35,
+            "EoL (20 pp = 80 % SoH)", fontsize=8.5, color="#1e293b", ha="right")
 
-    ax.set_ylabel("10-year capacity loss (%)", fontsize=12)
-    ax.set_title(
-        "Battery aging by typology, chemistry, and counterfactual\n"
-        "Wong 2026 anchored: 10-yr loss split into calendar (light) and cycle (dark)",
-        fontsize=12, fontweight="bold", pad=14,
-    )
+    ax.set_ylabel("10-year capacity loss (percentage points)")
+    ax.set_title("Battery aging by typology, chemistry, counterfactual — "
+                 "Wong 2026 Appendix E regression slopes at Wong Fig-5 volumes")
 
-    # legend with chemistry distinction
     handles = [
         mpatches.Patch(facecolor=COLORS["NMC_B1"]["cal"], label="NMC|Gr B1 calendar"),
         mpatches.Patch(facecolor=COLORS["NMC_B1"]["cyc"], label="NMC|Gr B1 cycle"),
         mpatches.Patch(facecolor=COLORS["LFP"]["cal"],    label="LFP|Gr calendar"),
         mpatches.Patch(facecolor=COLORS["LFP"]["cyc"],    label="LFP|Gr cycle"),
-        mpatches.Patch(facecolor="white", edgecolor="black", linestyle="--",
-                       label=f"EoL ({100-EOL_SOH_PCT:.0f} % loss = {EOL_SOH_PCT:.0f} % SoH)"),
     ]
-    ax.legend(handles=handles, loc="upper left", fontsize=9,
-              framealpha=0.95, ncol=2)
-    ax.grid(True, axis="y", alpha=0.3)
-    ax.set_ylim(-2, 32)
+    ax.legend(handles=handles, loc="upper left", ncol=2)
+    ax.set_ylim(-2, 30)
 
-    # Footer with annotation key
-    fig.text(0.5, 0.02,
-             "V2G effect tags from Wong 2026 Section 2.4: "
-             "IMPROVE (calendar offset) | NEUTRAL (n.s.) | SLIGHT | DECREASE | LARGE",
-             ha="center", fontsize=9, color="#555")
+    fig.text(0.5, 0.015,
+             "V0 baseline: visual read of Wong Fig 3 (INTERPRET).  V1G: Etxandi-Santolaya 2024 upper bound.  "
+             "V2G bars and calendar/cycle split: Wong Appendix E published betas (delta = beta x kWh/yr x 10).  "
+             "Category tags: Wong Sec 2.4 statistics.",
+             ha="center", fontsize=8.5, color=PALETTE["neutral"])
 
-    fig.tight_layout(rect=(0, 0.04, 1, 1))
-    fig.savefig(OUT, dpi=150, facecolor="white")
+    fig.tight_layout(rect=(0, 0.045, 1, 1))
+    fig.savefig(OUT)
     print(f"Saved {OUT}")
 
 

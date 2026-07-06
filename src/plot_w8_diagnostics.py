@@ -1,4 +1,4 @@
-"""W8 diagnostic plots — assesses Batch B (retailer gate) and Batch C (per-agent OSP).
+"""Diagnostic plots — retailer gate and per-agent OSP.
 
 Produces a single PNG `w8_diagnostics.png` with four panels:
   (a) OSP distribution per typology
@@ -168,7 +168,7 @@ def main() -> None:
 
     gate_state = "ON" if RETAILER_GATE_ENABLED else "OFF"
     fig.suptitle(
-        f"W8 diagnostics  -  retailer gate {gate_state}, aggregator contracted with {AGGREGATOR_CONTRACTED_RETAILER}",
+        f"Diagnostics  -  retailer gate {gate_state}, aggregator contracted with {AGGREGATOR_CONTRACTED_RETAILER}",
         fontsize=13, fontweight="bold",
     )
     fig.tight_layout(rect=(0, 0, 1, 0.96))

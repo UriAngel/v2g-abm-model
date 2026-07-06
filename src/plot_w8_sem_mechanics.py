@@ -1,4 +1,4 @@
-"""W8 SEM mechanics plot.
+"""SEM mechanics plot.
 
 Decomposes the SEM calculation for every V2G-capable agent in the fleet
 so it is visually clear how the five latent attitudinal factors plug into

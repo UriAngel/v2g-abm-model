@@ -1,6 +1,6 @@
 """V2G ABM — main entry point.
 
-W7 Friday version delegates to run_demo, which simulates one EV through
+Delegates to run_demo, which simulates the demo fleet through
 one week under three counterfactuals.
 
 Usage:

@@ -1,7 +1,7 @@
-"""W10.C: fleet composition coefficients.
+"""Fleet composition coefficients.
 
-David M6 ask: two coefficients to scale the per-agent ABM output up to
-fleet-level estimates of V2G impact in Israel.
+Two coefficients scale the per-agent ABM output up to fleet-level
+estimates of V2G impact in Israel.
 
   alpha (alpha)  = share of the total vehicle fleet that is electric
                    The "EV penetration" knob.
@@ -72,7 +72,7 @@ def n_evs(
 
 
 if __name__ == "__main__":
-    print("W10.C fleet composition baseline (Israel, 2026 estimate)")
+    print("Fleet composition baseline (Israel, 2026 estimate)")
     print(f"  Total passenger-car fleet : {N_FLEET_ISRAEL:>10,} vehicles")
     print(f"  EVs today (alpha={ALPHA_TODAY:.3f})    : {n_evs(ALPHA_TODAY):>10,} EVs")
     print(f"  EVs 2030 target (alpha={ALPHA_2030:.2f}): {n_evs(ALPHA_2030):>10,} EVs")
