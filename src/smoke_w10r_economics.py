@@ -55,6 +55,8 @@ MAX_AGING_DELTA_PCT = 20.0   # cap linear scaling at +/- 20 pp
 
 BATTERY_KWH = 67.0   # Israeli fleet weighted-average (see vehicle_catalog)
 ISRAEL_RETAIL_PEAK_NIS = 1.6895
+ISRAEL_OFFPEAK_NIS = 0.528
+RTE = 0.9025   # 0.95 charge x 0.95 discharge
 UK_POWER_PACK_GBP      = 0.12
 
 # The Sciurus 2021 figures are TOTAL annual earnings, not additive
@@ -93,17 +95,20 @@ OBSERVED_V2G_KWH_PER_YEAR = {
 
 def compute(country: str, typology: str, chemistry: str,
             uk_model: str = "B_sciurus") -> dict:
-    """uk_model: 'A_powerpack' (~£288/yr retail arbitrage only)
+    """uk_model: 'A_powerpack' (retail arbitrage only at the 12 p export rate)
                  'B_sciurus'   (£725/yr total, aggregator + DC) - default
     """
     kwh = OBSERVED_V2G_KWH_PER_YEAR[typology]
     wong_kwh = WONG_V2G_KWH_PER_YEAR[typology]["mean"]
 
     if country == "Israel":
-        rev_per_kwh = ISRAEL_RETAIL_PEAK_NIS
         currency = "NIS"
         premium = V2G_PREMIUM_NIS
-        annual_revenue = kwh * rev_per_kwh
+        # NET revenue: peak-rate income minus the off-peak cost of
+        # repurchasing the dispatched energy at the model round-trip
+        # efficiency (same basis as the P&L figures and the manuscript).
+        annual_revenue = (kwh * ISRAEL_RETAIL_PEAK_NIS
+                          - kwh / RTE * ISRAEL_OFFPEAK_NIS)
     else:
         currency = "GBP"
         premium = V2G_PREMIUM_GBP
@@ -175,7 +180,7 @@ def main() -> None:
     print(f"V2G premium (Wallbox Quasar 2 mid): {V2G_PREMIUM_NIS:,.0f} NIS / "
           f"GBP {V2G_PREMIUM_GBP:,.0f}.")
     print("Battery cost from BloombergNEF 2025: NMC 600 NIS/kWh, "
-          "LFP 380 NIS/kWh, 60 kWh pack.")
+          "LFP 380 NIS/kWh, 67 kWh pack (Israeli fleet average).")
     print()
 
     for country, uk_models in (("Israel", [None]),
