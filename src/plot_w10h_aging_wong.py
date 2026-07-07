@@ -66,6 +66,8 @@ TYPOLOGIES = list(WONG_V2G_KWH_PER_YEAR.keys())
 
 OUT = (Path(__file__).resolve().parent.parent
        / "outputs" / "w10h_aging_wong.png")
+OUT_ACTIVE = (Path(__file__).resolve().parent.parent
+       / "outputs" / "w10h_aging_wong_active.png")
 
 
 def split_losses(typology: str, chemistry: str, cf: str) -> tuple[float, float]:
@@ -99,10 +101,12 @@ COLORS = {
 }
 
 
-def main() -> None:
-    fig, ax = plt.subplots(figsize=(15, 7.2))
+def main(typologies=None, out=None) -> None:
+    typologies = typologies or TYPOLOGIES
+    out = out or OUT
+    fig, ax = plt.subplots(figsize=(15 if len(typologies) > 2 else 9.5, 7.2))
 
-    n_typ = len(TYPOLOGIES)
+    n_typ = len(typologies)
     bar_w = 0.13
     typ_centers = np.arange(n_typ) * 1.4
     chem_offset = {"NMC_B1": -0.27, "LFP": +0.27}
@@ -112,7 +116,7 @@ def main() -> None:
         for k, cf in enumerate(CFS):
             xs = typ_centers + chem_offset[chem] + (k - 1) * bar_w
             cal_vals, cyc_vals, totals, tags = [], [], [], []
-            for typ in TYPOLOGIES:
+            for typ in typologies:
                 cal, cyc = split_losses(typ, chem, cf)
                 cal_vals.append(cal); cyc_vals.append(cyc)
                 totals.append(cal + cyc)
@@ -137,7 +141,7 @@ def main() -> None:
                             fontweight="bold", color=color)
 
     ax.set_xticks(typ_centers)
-    ax.set_xticklabels([t.replace(" ", "\n") for t in TYPOLOGIES], fontsize=10.5)
+    ax.set_xticklabels([t.replace(" ", "\n") for t in typologies], fontsize=10.5)
 
     ax.axhline(100 - EOL_SOH_PCT, color="#1e293b", linestyle="--", linewidth=1.0)
     ax.text(typ_centers[-1] + 0.62, 100 - EOL_SOH_PCT + 0.35,
@@ -163,9 +167,10 @@ def main() -> None:
              ha="center", fontsize=8.5, color=PALETTE["neutral"])
 
     fig.tight_layout(rect=(0, 0.045, 1, 1))
-    fig.savefig(OUT)
-    print(f"Saved {OUT}")
+    fig.savefig(out)
+    print(f"Saved {out}")
 
 
 if __name__ == "__main__":
     main()
+    main(typologies=["Daily Charger", "BEV 2nd Vehicle"], out=OUT_ACTIVE)

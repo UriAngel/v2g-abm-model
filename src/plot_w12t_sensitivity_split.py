@@ -113,11 +113,13 @@ def panel_return_home(ax):
 
 def panel_drive_days(ax):
     drive_days = np.array([0, 1, 2, 3, 4, 5, 6, 7])
-    # Real ABM 120-agent sweep with 87 % BEV plug-in, per-opted-in,
-    # matched target_soc.  BEV curve is flat because BEV drives
-    # 22 km/day vs DC 40 km/day.
-    dc_v2g  = np.array([7038, 6789, 6587, 6349, 6114, 5882, 5650, 5344])
-    bev_v2g = np.array([6916, 6933, 6919, 6894, 6922, 6869, 6845, 6808])
+    # Real ABM 120-agent sweep, 3-seed average, 90 % max_soc cap,
+    # per-opted-in, matched plug-in (87 %) and target_soc.  Curves
+    # converge at 0 drive-days (+0.5 %); the gap at higher drive-days
+    # comes from km/day (40 vs 22) and the later return hour (18:00
+    # vs 16:00, missing the first peak hour).
+    dc_v2g  = np.array([6455, 6190, 5985, 5749, 5506, 5267, 5055, 4772])
+    bev_v2g = np.array([6424, 6415, 6387, 6346, 6344, 6336, 6312, 6271])
     ax.plot(drive_days, dc_v2g,  "-o", color="#0f766e",
             linewidth=2, markersize=7, label="Daily Charger")
     ax.plot(drive_days, bev_v2g, "-s", color="#1d4ed8",
@@ -132,13 +134,13 @@ def panel_drive_days(ax):
                 fontweight="bold", color="#1d4ed8")
     ax.set_xlabel("Driving days per week", fontsize=10)
     ax.set_ylabel("Annual V2G kWh / car", fontsize=10)
-    ax.set_title("(7) Drive-days sensitivity\n"
-                 "both typologies use Wong 87 % plug-in; converge at 0 d/wk",
+    ax.set_title("(7) Drive-days sensitivity (3-seed avg, 90 % cap)\n"
+                 "matched 87 % plug-in; curves converge at 0 d/wk",
                  fontsize=10, fontweight="bold")
     ax.set_xticks(drive_days)
     ax.legend(fontsize=8, loc="lower left")
     ax.grid(True, alpha=0.3)
-    ax.set_ylim(4800, 7800)
+    ax.set_ylim(4300, 7100)
 
 
 def panel_grid(ax):
