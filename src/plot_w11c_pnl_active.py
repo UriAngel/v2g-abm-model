@@ -62,10 +62,10 @@ def annual_revenue(country: str, typology: str,
 
     Israel off-peak = 0.528 NIS/kWh, RTE = 0.9025.
       net = kWh * (peak - off/RTE) = kWh * (1.6895 - 0.585) = kWh * 1.105
-    UK Power Pack: purely export income, no explicit recharge subtraction
-      because Powerloop is designed as an export tariff; residential still
-      pays retail import elsewhere.
-    UK Sciurus Model B: 725 GBP flat is already net per Cenex 2021.
+    UK Power Pack (Model A): SAME net basis as Israel - export income
+      minus the off-peak repurchase at the Intelligent Octopus Go rate:
+      net = kWh * (0.12 - 0.070/RTE) = kWh * 0.0424 GBP.
+    UK Sciurus Model B: 725 GBP flat total earnings per Cenex 2021.
     """
     ISRAEL_OFFPEAK = 0.528
     RTE = 0.9025
@@ -75,7 +75,8 @@ def annual_revenue(country: str, typology: str,
         recharge = kwh / RTE * ISRAEL_OFFPEAK
         return gross - recharge
     if uk_model == "A_powerpack":
-        return kwh * UK_POWER_PACK_GBP
+        UK_GO_OFFPEAK = 0.070
+        return kwh * (UK_POWER_PACK_GBP - UK_GO_OFFPEAK / RTE)
     return UK_SCIURUS_TOTAL_GBP if kwh > 0 else 0.0
 
 
@@ -92,7 +93,8 @@ def annual_battery_cost(typology: str, chem: str, currency: str) -> float:
     return annual if currency == "NIS" else annual / GBP_TO_NIS
 
 
-def draw(country: str, currency: str, premium: float) -> Path:
+def draw(country: str, currency: str, premium: float,
+         uk_model: str = "A_powerpack") -> Path:
     typs = ACTIVE
     chems = ("NMC", "LFP")
     n_typ = len(typs)
@@ -100,7 +102,7 @@ def draw(country: str, currency: str, premium: float) -> Path:
     rows = []
     for typ in typs:
         for chem in chems:
-            rev = annual_revenue(country, typ)
+            rev = annual_revenue(country, typ, uk_model=uk_model)
             bat = annual_battery_cost(typ, chem, currency)
             op = rev - bat
             pay = (premium / op) if op > 0 else float("inf")
@@ -170,7 +172,7 @@ def draw(country: str, currency: str, premium: float) -> Path:
                  "V2G revenue minus battery degradation cost.",
                  fontsize=11, fontweight="bold")
     # Legend BELOW the plot so it does not overlap the bars
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10),
+    ax.legend(loc="upper center", bbox_to_anchor=(0.75, -0.10),
               ncol=4, fontsize=8.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
@@ -203,7 +205,8 @@ def draw(country: str, currency: str, premium: float) -> Path:
     sub = (f"V2G premium = bidirectional minus smart unidirectional "
            f"= {premium:,.0f} {currency}.")
     if country == "UK":
-        sub += f"  Sciurus aggregator model: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/V2G EV/yr (total)."
+        sub = (f"Premium {premium:,.0f} GBP.  Power Pack net of 7 p Go recharge;\n"
+               f"Sciurus alternative: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/yr total (payback ~5.5 y).")
     ax.set_title(f"{country}  -  V2G PREMIUM payback (years)\n{sub}",
                  fontsize=11, fontweight="bold")
     ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
@@ -213,7 +216,7 @@ def draw(country: str, currency: str, premium: float) -> Path:
     fig.suptitle(f"{country}: V2G driver economics  -  active typologies only "
                  "(Public + Threshold dropped, structural zero V2G)",
                  fontsize=12, fontweight="bold")
-    fig.tight_layout(rect=(0, 0.05, 1, 0.94))
+    fig.tight_layout(rect=(0.01, 0.07, 0.99, 0.93))
     out = OUTDIR / f"w11c_pnl_active_{country.lower()}.png"
     fig.savefig(out, dpi=150, facecolor="white")
     plt.close(fig)

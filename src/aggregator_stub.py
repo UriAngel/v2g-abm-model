@@ -114,8 +114,8 @@ CHARGER_CAPEX_SMART_NIS       = 3_300.0
 # V2G premium = bidirectional cost minus what the driver would already pay
 # for a smart unidirectional charger.  This is the relevant number for
 # V1G->V2G investment decisions (the marginal cost of going bidirectional).
-V2G_PREMIUM_2024_NIS = CHARGER_CAPEX_BIDIR_2024_NIS - CHARGER_CAPEX_SMART_NIS   # ~32,400
-V2G_PREMIUM_2028_NIS = CHARGER_CAPEX_BIDIR_2028_NIS - CHARGER_CAPEX_SMART_NIS   # ~9,700
+V2G_PREMIUM_2024_NIS = CHARGER_CAPEX_BIDIR_2024_NIS - CHARGER_CAPEX_SMART_NIS   # ~19,350
+V2G_PREMIUM_2028_NIS = CHARGER_CAPEX_BIDIR_2028_NIS - CHARGER_CAPEX_SMART_NIS   # ~8,025
 
 # Default scenario for headline payback figures.  Override in plotting
 # scripts that want to show the 2028-30 scenario.

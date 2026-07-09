@@ -113,8 +113,11 @@ def compute(country: str, typology: str, chemistry: str,
         currency = "GBP"
         premium = V2G_PREMIUM_GBP
         if uk_model == "A_powerpack":
-            # Retail-only arbitrage at Power Pack 12 p export rate
-            annual_revenue = kwh * UK_POWER_PACK_GBP
+            # Retail-only arbitrage NET: 12 p export less the off-peak
+            # repurchase at Intelligent Octopus Go 7 p and RTE (same
+            # basis as the Israeli NET figures).
+            UK_GO_OFFPEAK = 0.070
+            annual_revenue = kwh * (UK_POWER_PACK_GBP - UK_GO_OFFPEAK / RTE)
         else:
             # The Sciurus £725 flat fee is intended for real V2G
             # participants, not for typologies producing rounding-artifact

@@ -20,8 +20,10 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "outputs"
 
 
 def panel_capex(ax):
-    labels = ["Israel\n2024", "Israel\n2028", "UK Sciurus\n2024", "UK Sciurus\n2028"]
-    paybacks = [4.4, 1.8, 5.1, 2.4]
+    # Premiums: IL 19,350 NIS (2026) / 8,025 (2028); UK 3,702 GBP / 1,851.
+    # Operating P&L: IL DC NMC 5,323 NIS/yr; UK Sciurus 725-46 = 679 GBP/yr.
+    labels = ["Israel\n2026", "Israel\n2028", "UK Sciurus\n2026", "UK Sciurus\n2028"]
+    paybacks = [3.6, 1.5, 5.5, 2.7]
     colors = ["#0f766e", "#0f766e", "#1d4ed8", "#1d4ed8"]
     bars = ax.bar(labels, paybacks, color=colors, edgecolor="white")
     for b, v in zip(bars, paybacks):
@@ -30,7 +32,7 @@ def panel_capex(ax):
     ax.axhline(10, color="#b91c1c", linestyle="--", linewidth=1,
                label="10-yr battery life")
     ax.set_ylabel("V2G premium payback (years)", fontsize=10)
-    ax.set_title("(1) Sigenergy 2024 vs 2028",
+    ax.set_title("(1) Bidirectional charger CAPEX, 2026 vs 2028",
                  fontsize=11, fontweight="bold")
     ax.set_ylim(0, 12)
     ax.legend(fontsize=8, loc="upper right")
@@ -38,8 +40,11 @@ def panel_capex(ax):
 
 
 def panel_uk_rate(ax):
-    rates = [8, 12, 16, 20, 25]
-    pb = [17.7, 11.8, 8.8, 7.1, 5.7]
+    # NET basis (matches Fig 4.2/4.4): payback = premium / (kwh * (rate
+    # - 0.070/0.9025)), kwh = 4,820 (DC opt-in), premium = 3,702 GBP.
+    kwh, prem, go_rt = 4820, 3702, 0.070 / 0.9025
+    rates = [10, 12, 16, 20, 25]
+    pb = [prem / (kwh * (r / 100 - go_rt)) for r in rates]
     ax.plot(rates, pb, "-o", color="#1d4ed8", linewidth=2, markersize=8)
     for r, p in zip(rates, pb):
         ax.text(r, p + 0.5, f"{p:.1f}y", ha="center", fontsize=9, fontweight="bold")
@@ -49,7 +54,7 @@ def panel_uk_rate(ax):
                alpha=0.7, label="current Power Pack 12 p")
     ax.set_xlabel("Power Pack export rate (p/kWh)", fontsize=10)
     ax.set_ylabel("Payback (years)", fontsize=10)
-    ax.set_title("(2) UK Power Pack rate sweep",
+    ax.set_title("(2) UK Power Pack rate sweep (net of Go recharge)",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=8, loc="upper right")
     ax.grid(True, alpha=0.3)

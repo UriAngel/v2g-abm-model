@@ -39,14 +39,16 @@ def main() -> None:
     IL_OFFPEAK = 0.528
     RTE = 0.9025
     il_rev = [ACTIVE[t] * IL_RETAIL_PEAK - ACTIVE[t] / RTE * IL_OFFPEAK for t in typs]
-    uk_rev_gbp = [ACTIVE[t] * UK_POWER_PACK for t in typs]
+    UK_GO_OFFPEAK = 0.070
+    uk_rev_gbp = [ACTIVE[t] * UK_POWER_PACK - ACTIVE[t] / RTE * UK_GO_OFFPEAK
+                  for t in typs]   # NET, same basis as Israel
     uk_rev_nis = [r * GBP_TO_NIS for r in uk_rev_gbp]
 
     b1 = ax.bar(x - w/2, il_rev, w, color="#0f766e",
                 label="Israel retail (TAOZ 1.6895 NIS/kWh)",
                 edgecolor="white")
     b2 = ax.bar(x + w/2, uk_rev_nis, w, color="#1d4ed8",
-                label="UK retail (Power Pack 12 p/kWh)",
+                label="UK retail NET (12 p export less 7 p Go recharge)",
                 edgecolor="white")
 
     for b, v_il, v_uk_gbp in zip(range(len(typs)), il_rev, uk_rev_gbp):
@@ -74,7 +76,7 @@ def main() -> None:
                  "Israel retail\n(TAOZ)",
                  "Israel retail +\nancillary\n(no market yet)"]
     vals_gbp = [
-        ACTIVE["Daily Charger"] * UK_POWER_PACK,   # UK retail
+        ACTIVE["Daily Charger"] * (UK_POWER_PACK - 0.070 / 0.9025),   # UK retail NET
         UK_SCIURUS_TOT,                            # UK retail + DC
         ACTIVE["Daily Charger"] * IL_RETAIL_PEAK / GBP_TO_NIS,  # IL retail
         0.0,                                       # IL retail + ancillary unknown
