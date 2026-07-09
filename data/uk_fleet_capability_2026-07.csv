@@ -1,0 +1,19 @@
+# UK BEV car fleet capability composition, end-2025 basis. Compiled 2026-07-08.
+# Denominator: ~1,656,000 licensed BEV cars (DfT vehicle licensing statistics 2025:
+# zero-emission = 4.8% of 34.5M licensed cars; 2,012,000 zero-emission vehicles all types).
+# Per-model figures are cumulative UK registrations (upper bound on licensed stock)
+# from SMMT annual tables, manufacturer press releases, and derived splits - NOT a
+# single registry query like the Israeli file (il_registry_ev_counts_2026-07.csv).
+# V2G-capable bucket uses the SAME model basket as the Israeli bucket for
+# comparability: Leaf + Renault 5 + Ioniq 5 + Ioniq 6 + EV6 + EV9.
+category,model_family,count,notes
+total,BEV_cars,1656000,"DfT 2025: 4.8% of 34.5M licensed cars"
+ev_model,NISSAN LEAF,50000,"cum. sales ~55k (40k by Nov 2020 Nissan GB + 9178 in 2022 SMMT + est.); ~10% attrition; CHAdeMO true V2G"
+ev_model,RENAULT 5,9000,"bounded 2400-10289 (Renault UK / SMMT top-10); AC V2G ISO 15118-20"
+ev_model,HYUNDAI IONIQ 5,15000,"6670 by Sep 2022 (DVLA via forum) + est.; E-GMP; WEAK LINK"
+ev_model,HYUNDAI IONIQ 6,4000,"estimate only - no published UK cumulative; WEAK LINK"
+ev_model,KIA EV6,20000,"derived from Kia UK official 94k+ EVs end-2025 minus Niro family >51k minus Soul ~2k minus EV3/EV4/EV5"
+ev_model,KIA EV9,3000,"same derivation; first certified V2G car on Quasar 2"
+bucket,V2G_class_platform,101000,"= 6.1% of BEV cars; range 5-8% given Leaf/Ioniq/EV6 uncertainty; excludes VW ID 77kWh subset (unquantifiable, enabled only in DE)"
+bucket,V2G_enabled_today,750,"order 500-1000: Powerloop 135 (UKRI) + Sciurus ~320 (OVO) + Octopus Power Pack commercial tail (subscriber counts unpublished) = ~0.05% of BEV cars"
+bucket,V2L_counted_floor,195000,"~11.8% floor: E-GMP 55k + R5 9k + MG4 45k (MG official >40k) + BYD BEV ~30k + Niro EV ~20k + EX30 20.2k (SMMT) + Kona new-gen ~15k; long tail uncounted; plausible true 14-18%"

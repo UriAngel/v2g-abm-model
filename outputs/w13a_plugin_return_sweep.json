@@ -1,0 +1,220 @@
+{
+ "results": [
+  {
+   "sweep": "plugin",
+   "value": 6.11,
+   "seed": 0,
+   "dc_mean_optin": 4750.289208838937,
+   "dc_n_optin": 14,
+   "wall_time_s": 5.782944917678833
+  },
+  {
+   "sweep": "plugin",
+   "value": 5.5,
+   "seed": 0,
+   "dc_mean_optin": 4300.990606944427,
+   "dc_n_optin": 14,
+   "wall_time_s": 3.151672840118408
+  },
+  {
+   "sweep": "plugin",
+   "value": 6.5,
+   "seed": 0,
+   "dc_mean_optin": 5059.1248226990065,
+   "dc_n_optin": 14,
+   "wall_time_s": 5.09966778755188
+  },
+  {
+   "sweep": "plugin",
+   "value": 7.0,
+   "seed": 0,
+   "dc_mean_optin": 5440.0828489521355,
+   "dc_n_optin": 14,
+   "wall_time_s": 7.687506437301636
+  },
+  {
+   "sweep": "plugin",
+   "value": 5.5,
+   "seed": 1,
+   "dc_mean_optin": 4544.446053124791,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.856144905090332
+  },
+  {
+   "sweep": "plugin",
+   "value": 6.11,
+   "seed": 1,
+   "dc_mean_optin": 5041.673889492369,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.6750454902648926
+  },
+  {
+   "sweep": "plugin",
+   "value": 6.5,
+   "seed": 1,
+   "dc_mean_optin": 5340.650618419624,
+   "dc_n_optin": 17,
+   "wall_time_s": 5.71961784362793
+  },
+  {
+   "sweep": "plugin",
+   "value": 7.0,
+   "seed": 1,
+   "dc_mean_optin": 5768.693755005579,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.1465911865234375
+  },
+  {
+   "sweep": "plugin",
+   "value": 5.5,
+   "seed": 2,
+   "dc_mean_optin": 4465.801731133565,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.640538454055786
+  },
+  {
+   "sweep": "plugin",
+   "value": 6.11,
+   "seed": 2,
+   "dc_mean_optin": 4964.305884728659,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.6986231803894043
+  },
+  {
+   "sweep": "plugin",
+   "value": 6.5,
+   "seed": 2,
+   "dc_mean_optin": 5318.037665270787,
+   "dc_n_optin": 15,
+   "wall_time_s": 5.698095321655273
+  },
+  {
+   "sweep": "plugin",
+   "value": 7.0,
+   "seed": 2,
+   "dc_mean_optin": 5751.990030378456,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.193755626678467
+  },
+  {
+   "sweep": "return",
+   "value": 16,
+   "seed": 0,
+   "dc_mean_optin": 5860.420200671886,
+   "dc_n_optin": 14,
+   "wall_time_s": 3.6906745433807373
+  },
+  {
+   "sweep": "return",
+   "value": 17,
+   "seed": 0,
+   "dc_mean_optin": 5208.04975004665,
+   "dc_n_optin": 14,
+   "wall_time_s": 3.7374565601348877
+  },
+  {
+   "sweep": "return",
+   "value": 18,
+   "seed": 0,
+   "dc_mean_optin": 4750.289208838937,
+   "dc_n_optin": 14,
+   "wall_time_s": 5.657735824584961
+  },
+  {
+   "sweep": "return",
+   "value": 19,
+   "seed": 0,
+   "dc_mean_optin": 4594.397198532954,
+   "dc_n_optin": 14,
+   "wall_time_s": 3.1070072650909424
+  },
+  {
+   "sweep": "return",
+   "value": 20,
+   "seed": 0,
+   "dc_mean_optin": 4021.1329020183957,
+   "dc_n_optin": 14,
+   "wall_time_s": 3.254422426223755
+  },
+  {
+   "sweep": "return",
+   "value": 16,
+   "seed": 1,
+   "dc_mean_optin": 6165.259758561624,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.6352601051330566
+  },
+  {
+   "sweep": "return",
+   "value": 17,
+   "seed": 1,
+   "dc_mean_optin": 5517.493819825561,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.5881757736206055
+  },
+  {
+   "sweep": "return",
+   "value": 18,
+   "seed": 1,
+   "dc_mean_optin": 5041.673889492369,
+   "dc_n_optin": 17,
+   "wall_time_s": 5.195348262786865
+  },
+  {
+   "sweep": "return",
+   "value": 19,
+   "seed": 1,
+   "dc_mean_optin": 4755.191156178838,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.472397804260254
+  },
+  {
+   "sweep": "return",
+   "value": 20,
+   "seed": 1,
+   "dc_mean_optin": 4037.4071205789737,
+   "dc_n_optin": 17,
+   "wall_time_s": 3.2497081756591797
+  },
+  {
+   "sweep": "return",
+   "value": 16,
+   "seed": 2,
+   "dc_mean_optin": 6004.491592728888,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.678025722503662
+  },
+  {
+   "sweep": "return",
+   "value": 17,
+   "seed": 2,
+   "dc_mean_optin": 5392.858154623965,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.643258810043335
+  },
+  {
+   "sweep": "return",
+   "value": 18,
+   "seed": 2,
+   "dc_mean_optin": 4964.305884728659,
+   "dc_n_optin": 15,
+   "wall_time_s": 5.875289440155029
+  },
+  {
+   "sweep": "return",
+   "value": 19,
+   "seed": 2,
+   "dc_mean_optin": 4706.4946134995635,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.1554343700408936
+  },
+  {
+   "sweep": "return",
+   "value": 20,
+   "seed": 2,
+   "dc_mean_optin": 3892.4764532803156,
+   "dc_n_optin": 15,
+   "wall_time_s": 3.1804769039154053
+  }
+ ]
+}

@@ -76,9 +76,12 @@ def panel_taoz(ax):
 
 
 def panel_plugin(ax):
+    # Real ABM 120-agent sweep, 3-seed average (seeds 0-2), 90 % max_soc
+    # cap, per-opted-in.  Source: sweep_w13a_plugin_return.py ->
+    # outputs/w13a_plugin_return_sweep.json (2026-07-09).
     probs = [5.50, 6.11, 6.50, 7.00]
     prob_pct = [p/7*100 for p in probs]
-    v2g_kwh = [2730, 3027, 3217, 3470]
+    v2g_kwh = [4437, 4919, 5239, 5654]
     ax.plot(prob_pct, v2g_kwh, "-o", color="#0f766e", linewidth=2, markersize=8)
     for p, v in zip(prob_pct, v2g_kwh):
         ax.text(p, v + 60, f"{v:,}", ha="center", fontsize=9, fontweight="bold")
@@ -86,15 +89,18 @@ def panel_plugin(ax):
                label="Wong Table 1 anchor (87 %)")
     ax.set_xlabel("Plug-in probability (% of home evenings)", fontsize=10)
     ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=10)
-    ax.set_title("(4) Plug-in probability robustness",
+    ax.set_title("(4) Plug-in probability robustness (3-seed avg, 90 % cap)",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=8, loc="lower right")
     ax.grid(True, alpha=0.3)
 
 
 def panel_return_home(ax):
+    # Real ABM 120-agent sweep, 3-seed average (seeds 0-2), 90 % max_soc
+    # cap, per-opted-in.  Source: sweep_w13a_plugin_return.py ->
+    # outputs/w13a_plugin_return_sweep.json (2026-07-09).
     hours = [16, 17, 18, 19, 20]
-    v2g = [3463, 3266, 2724, 2740, 2241]
+    v2g = [6010, 5373, 4919, 4685, 3983]
     ax.plot(hours, v2g, "-o", color="#0f766e", linewidth=2, markersize=8)
     ax.axvline(18, color="#b91c1c", linestyle=":", linewidth=1,
                label="baseline 18:00")
@@ -104,11 +110,11 @@ def panel_return_home(ax):
         ax.text(h, v + 60, f"{v:,}", ha="center", fontsize=9, fontweight="bold")
     ax.set_xlabel("Arrival home hour", fontsize=10)
     ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=10)
-    ax.set_title("(6) Return-home hour sensitivity",
+    ax.set_title("(6) Return-home hour sensitivity (3-seed avg, 90 % cap)",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=8, loc="lower left")
     ax.grid(True, alpha=0.3)
-    ax.set_ylim(1800, 3800)
+    ax.set_ylim(3500, 6500)
 
 
 def panel_drive_days(ax):
@@ -144,28 +150,45 @@ def panel_drive_days(ax):
 
 
 def panel_grid(ax):
-    bg = [0.05, 0.10, 0.20, 0.30, 0.50, 0.70, 1.00]
-    net = [-140, -107, -52, +14, +135, +245, +432]
+    # Analytical worst-case envelope, reproducible from model constants
+    # (grid_agent.py): 54 HH x 1 EV, 517 kVA, discharge 9.6 kW/EV.
+    # ALL participating EVs (beta*gamma share) discharge simultaneously.
+    # Two bounding baselines from HH_BASELINE_24H_KW:
+    #   winter 17:00 (peak-window minimum): 1.6 kW/HH ->  86.4 kW import
+    #   summer 19:00 (peak-window maximum): 2.8 kW/HH -> 151.2 kW import
+    # net(bg) = bg*54*9.6 - baseline.  At bg=1 the winter bound gives
+    # 54*(9.6-1.6) = +432 kW, crossing the 413 kW ENA margin at bg=96%;
+    # the 517 kVA nameplate is unreachable (max +432).
+    bg = np.linspace(0.0, 1.0, 21)
+    hh, kva, p_dis = 54, 517.0, 9.6
+    net_winter = bg * hh * p_dis - 54 * 1.6
+    net_summer = bg * hh * p_dis - 54 * 2.8
     ax.axhline(0, color="black", linewidth=0.8)
-    ax.plot([b*100 for b in bg], net, "-o", color="#0f766e",
-            linewidth=2, markersize=8)
-    ax.axhline(517 * 0.8, color="#b91c1c", linestyle="--", linewidth=1,
-               label="80 % safety margin (413 kW)")
-    ax.axhline(-517 * 0.8, color="#b91c1c", linestyle="--", linewidth=1)
-    ax.axhline(517, color="#d97706", linestyle=":", linewidth=1, alpha=0.7,
-               label="517 kVA transformer rating")
-    ax.axhline(-517, color="#d97706", linestyle=":", linewidth=1, alpha=0.7)
-    for b, n in zip(bg, net):
-        ax.text(b*100, n + 20, f"{n:+d}", ha="center", fontsize=9,
-                fontweight="bold")
-    ax.set_xlabel(r"$\beta \cdot \gamma$  (%)", fontsize=10)
+    ax.fill_between(bg*100, net_summer, net_winter, color="#0f766e", alpha=0.12)
+    ax.plot(bg*100, net_winter, "-", color="#0f766e", linewidth=2,
+            label="winter 17:00 baseline (86 kW) - export worst case")
+    ax.plot(bg*100, net_summer, "--", color="#0f766e", linewidth=1.6,
+            label="summer 19:00 baseline (151 kW)")
+    ax.axhline(kva * 0.8, color="#b91c1c", linestyle="--", linewidth=1,
+               label="80 % planning margin (413 kW)")
+    ax.axhline(kva, color="#d97706", linestyle=":", linewidth=1, alpha=0.8,
+               label="517 kVA nameplate rating")
+    ax.plot([100], [432], "o", color="#0f766e", markersize=8)
+    ax.text(99, 432 + 18, "+432", ha="right", fontsize=9, fontweight="bold")
+    ax.plot([96.4], [413.6], "x", color="#b91c1c", markersize=9)
+    ax.annotate("margin crossed at 96 %", xy=(96.4, 413.6), xytext=(58, 470),
+                fontsize=8, color="#b91c1c",
+                arrowprops=dict(arrowstyle="->", color="#b91c1c", linewidth=0.9))
+    ax.set_xlabel(r"$\beta \cdot \gamma$  (% of the feeder's 54 EVs "
+                  "discharging simultaneously)", fontsize=10)
     ax.set_ylabel("Net feeder load (kW)   negative = import, positive = export",
                   fontsize=10)
-    ax.set_title("(5) GridAgent constraint at IL residential feeder\n"
-                 "(54 HH x 3 kW ADMD, 517 kVA)",
+    ax.set_title("(5) Feeder worst-case envelope, all participants discharging\n"
+                 "at once (54 HH x 1 EV, 517 kVA; simulated year: zero denials)",
                  fontsize=10, fontweight="bold")
-    ax.legend(fontsize=8, loc="upper left")
+    ax.legend(fontsize=7.5, loc="upper left")
     ax.grid(True, alpha=0.3)
+    ax.set_ylim(-260, 620)
 
 
 def panel_headlines(ax):

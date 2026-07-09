@@ -1,0 +1,24 @@
+# Israeli vehicle registry (data.gov.il, resource 053cea08-09bc-40ec-8f7a-156f0677aff3)
+# Queried 2026-07-07 via CKAN datastore_search API. Counts = registered vehicles.
+# Names as they appear in kinuy_mishari; families summed across spelling variants where queried.
+category,model_family,count,notes
+total,all_vehicles,4134878,entire private+commercial registry
+total,all_EVs,235933,"sug_delek_nm = electric; alpha = 5.71% of fleet"
+ev_model,BYD ATTO 3,33389,"ATTO 3 (33145) + ATTO 3 EVO (244); V2L"
+ev_model,TESLA MODEL 3,19838,no V2G/V2L
+ev_model,TESLA MODEL Y,15429,no V2G/V2L
+ev_model,HYUNDAI IONIQ 5,6389,"V2L; ISO 15118-20 V2G-class platform (not enabled in IL)"
+ev_model,MG4,6126,"MG4 (5951) + MG4 ELECTRIC (175); V2L"
+ev_model,BYD DOLPHIN,5373,"BYD DOLPHIN (5359) + DOLPHIN (14); V2L"
+ev_model,HYUNDAI KONA EV,2347,"electric only (name shared with hybrid); newer trims V2L"
+ev_model,BYD SEAL,1367,V2L
+ev_model,HYUNDAI IONIQ 6,1341,"V2L; V2G-class platform"
+ev_model,BYD SEAL U (BEV),1126,electric only; PHEV excluded
+ev_model,VOLVO EX30 (SM),1008,"ISO 15118-20-ready per Volvo; TM variant not counted"
+ev_model,KIA EV6,824,"V2L; V2G-class platform"
+ev_model,NISSAN LEAF,236,"LEAF (232) + NISSAN LEAF (4); CHAdeMO - true V2G capable today"
+ev_model,KIA EV9,65,"V2L; V2G-class platform (first certified V2G car on Quasar 2)"
+ev_model,RENAULT 5,23,AC V2G capable in EU markets
+bucket,V2G_class_platform,8878,"IONIQ5+IONIQ6+EV6+EV9+LEAF+R5 = 3.8% of EVs; 0.21% of all cars"
+bucket,V2G_enabled_today,259,"LEAF + RENAULT 5 (approx; enablement of E-GMP cars in IL unverified)"
+bucket,V2L_counted_floor,58347,"sum of confirmed-V2L families counted above; >=25% of EVs; long tail (Sealion, XPeng, Zeekr, Deepal, Aion, EV3/EV5, Niro) not counted - realistic V2L total ~35-40% of EVs"
