@@ -1,10 +1,10 @@
 """Fleet capability composition: Israel vs UK, three layers.
 
-Shares of each country's BEV car fleet that are (i) V2G-class platform
-hardware, (ii) V2G-enabled today (commercially able to discharge), and
-(iii) V2L-capable (counted floor).  The V2G-capable buckets use the SAME
-model basket in both countries (Leaf, Renault 5, Ioniq 5/6, EV6, EV9)
-so the comparison is like-for-like.
+Shares of each country's BEV car fleet that are (i) V2L (power socket
+only), (ii) V2G potential (hardware built in, awaiting manufacturer
+activation), and (iii) V2G capable (vehicle already permits discharge).
+The V2G-potential basket is the SAME in both countries (Leaf, Renault 5,
+Ioniq 5/6, EV6, EV9, GV60) so the comparison is like-for-like.
 
 Data provenance:
   Israel: data/il_registry_ev_counts_2026-07.csv - full national vehicle
@@ -31,18 +31,21 @@ OUT = (Path(__file__).resolve().parent.parent
 
 # Shares of the national BEV car fleet (percent).
 # Israel denominators: 235,933 EVs (registry).  UK: ~1,656,000 BEV cars (DfT).
+L_V2L = "V2L\n(power socket only,\nno grid export)"
+L_POT = "V2G potential\n(hardware built in, awaiting\nmanufacturer activation)"
+L_CAP = "V2G capable\n(vehicle already\npermits discharge)"
 DATA = {
-    #                 Israel            UK
-    "V2G-class\nplatform":   (8878 / 235933 * 100,   101000 / 1656000 * 100),
-    "V2G-enabled\ntoday":    (259  / 235933 * 100,   750    / 1656000 * 100),
-    "V2L-capable\n(floor)":  (58347 / 235933 * 100,  195000 / 1656000 * 100),
+    #        Israel                   UK
+    L_V2L: (58347 / 235933 * 100, 195000 / 1656000 * 100),
+    L_POT: (9899 / 235933 * 100,  101000 / 1656000 * 100),
+    L_CAP: (259 / 235933 * 100,   750 / 1656000 * 100),
 }
 COUNTS = {
-    "V2G-class\nplatform":  ("8,878", "~101k"),
-    "V2G-enabled\ntoday":   ("~259", "~750"),
-    "V2L-capable\n(floor)": ("58,347", "~195k"),
+    L_V2L: ("58,347", "~195k"),
+    L_POT: ("9,899", "~101k"),
+    L_CAP: ("~259", "~500-1,000"),
 }
-FLOOR = {"V2L-capable\n(floor)"}
+FLOOR = {L_V2L}
 
 
 def main() -> None:
@@ -78,10 +81,10 @@ def main() -> None:
     ax.set_ylim(0, 30)
     ax.set_title("V2G capability layers in the Israeli and UK EV fleets, "
                  "mid-2026")
-    ax.legend(loc="upper left")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.99))
 
-    ax.annotate("capability–enablement gap:\n~34× (IL), ~135× (UK)",
-                xy=(1.0, 1.2), xytext=(1.0, 9.5),
+    ax.annotate("potential vs capable:\n~38× gap (IL), ~135× gap (UK)",
+                xy=(2.0, 1.2), xytext=(2.0, 9.5),
                 ha="center", fontsize=9, color=PALETTE["cost"],
                 arrowprops=dict(arrowstyle="->", color=PALETTE["cost"],
                                 linewidth=1.0))
@@ -89,8 +92,9 @@ def main() -> None:
     fig.text(0.5, 0.015,
              "Israel: registry query (data.gov.il, Jul 2026), exact counts; V2L floor (realistic ~35-40%).\n"
              "UK: constructed from DfT licensing statistics, SMMT tables, OEM cumulative sales; V2L floor (plausible 14-18%).\n"
-             "Same V2G-class basket both countries: Leaf, Renault 5, Ioniq 5/6, EV6, EV9.  Enabled today: IL = Leaf + R5;\n"
-             "UK = Powerloop + Sciurus + Octopus Power Pack tail (order-of-magnitude).",
+             "V2G-potential basket: Leaf, Renault 5, Ioniq 5/6, EV6, EV9, GV60 (IL registry; UK constructed).  V2G capable: IL = Leaf + R5;\n"
+             "UK = vehicles in live paid programmes (Powerloop + Sciurus + Power Pack tail, order-of-magnitude).\n"
+             "Israel: grid export is not yet authorised, so even these vehicles cannot yet be paid.",
              ha="center", fontsize=7.8, color=PALETTE["neutral"])
 
     fig.tight_layout(rect=(0, 0.11, 1, 1))

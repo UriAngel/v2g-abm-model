@@ -1,0 +1,19 @@
+{
+ "runs": [
+  {
+   "seed": 0,
+   "Daily_Charger": 3829.6441292363183,
+   "BEV_2nd_Vehicle": 6022.640695815658
+  },
+  {
+   "seed": 1,
+   "Daily_Charger": 4315.01988152645,
+   "BEV_2nd_Vehicle": 6307.137794569869
+  },
+  {
+   "seed": 2,
+   "Daily_Charger": 4065.559602618964,
+   "BEV_2nd_Vehicle": 6449.691452830384
+  }
+ ]
+}

@@ -35,8 +35,8 @@ digraph flow {{
   hour  [label=<<B>Hour h&nbsp; (1 &hellip; 8,760)</B>>,
          fillcolor="{TEALF}", color="{TEAL}"];
   agg   [label=<<B>AggregatorAgent</B><BR/><BR/>queries the pricing module: is hour h inside the tariff peak window?<BR/>if yes, the discharge signal fires for h>];
-  mob   [label=<<B>EVAgent mobility update</B> &nbsp;<I>(each agent, fixed order)</I><BR/><BR/>depart / drive / return per typology schedule;<BR/>trip energy drawn from state of charge>];
-  dec   [label=<<B>Charging / discharging decision</B> &nbsp;<I>(counterfactual rule)</I><BR/><BR/>V0: charge at 7.0 kW when plugged and SoC below the typology target<BR/>(Wong Table 1; 89.2 % for the Daily Charger)<BR/>V1G: charge off-peak only, departure-aware target<BR/>V2G: V1G charging + six-condition discharge gate (Figure 3.2);<BR/>opted-in agents cap charging at 90 % SoC>];
+  mob   [label=<<B>EVAgent mobility update</B><BR/><BR/>each agent departs, drives and returns per its typology schedule;<BR/>trip energy is drawn from the state of charge>];
+  dec   [label=<<B>Charging / discharging decision</B> &nbsp;<I>(counterfactual rule)</I><BR/><BR/>V0: charge at 7.0 kW when plugged and SoC below the typology target<BR/>(Wong Table 1; 89.2 % for the Daily Charger)<BR/>V1G: charge off-peak only, departure-aware target<BR/>V2G: V1G charging + five-condition discharge gate (Figure 3.2),<BR/>discharging at 9.6 kW down to the 50 % SoC floor;<BR/>opted-in agents cap charging at 90 % SoC>];
   grid  [label=<<B>GridAgent feeder check</B><BR/><BR/>can_charge / can_discharge against transformer kVA<BR/>(household baseline load included)>];
   commit[label=<<B>Commit action</B><BR/><BR/>energy, revenue / cost recorded; feeder net load updated>];
   aging [label=<<B>Battery health update</B><BR/><BR/>calendar + cycle aging applied to state of health>];
@@ -81,7 +81,7 @@ digraph sm {{
   plugged -> driving  [label="departure hour (unplug)  "];
   plugged -> charging [label="charging rule fires\\n(V0: SoC below target;\\nV1G/V2G: off-peak)  "];
   charging -> plugged [label="  target reached"];
-  plugged -> discharging [label="  six-condition gate TRUE\\n  (signal, opt-in, capable,\\n  SoC over 50 %, price at or\\n  above OSP, retailer match)"];
+  plugged -> discharging [label="  five-condition gate TRUE\\n  (signal, opt-in, capable,\\n  SoC over 50 %,\\n  price at or above OSP)"];
   discharging -> plugged [label="signal ends, SoC at 50 %,\\nor feeder denial  "];
 }}
 """

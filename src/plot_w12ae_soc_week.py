@@ -28,14 +28,15 @@ def run_agent(typology, hours=HOURS_IN_WEEK):
     agent = EVAgent(agent_id=1, typology=typology,
                     counterfactual=COUNTERFACTUAL_V2G, country="Israel")
     agent.state.v2g_opted_in = True
-    soc_trace = []
+    soc_trace, away = [], []
     for h in range(hours):
         hod, dow, month = hour_to_calendar(h)
         p = price_at_hour(hod, dow, month)
         agent.step(current_hour=h, current_price_per_kwh=p,
                    month=month, discharge_revenue_per_kwh=None)
         soc_trace.append(agent.state.soc * 100)
-    return soc_trace
+        away.append(getattr(agent.state, "location", "home") != "home")
+    return soc_trace, away
 
 
 def main() -> None:
@@ -50,9 +51,21 @@ def main() -> None:
     axes = axes.flatten()
 
     for ax, (typology, label, color) in zip(axes, typologies):
-        trace = run_agent(typology)
+        trace, away = run_agent(typology)
         hours = list(range(len(trace)))
-        ax.plot(hours, trace, color=color, linewidth=2, label=label)
+        # shade the hours the vehicle is actually away from home (model log)
+        start = None
+        first_span = True
+        for i, a in enumerate(away + [False]):
+            if a and start is None:
+                start = i
+            elif not a and start is not None:
+                ax.axvspan(start, i, color="#94a3b8", alpha=0.18,
+                           label="away from home" if first_span else None)
+                first_span = False
+                start = None
+        ax.plot(hours, trace, color=color, linewidth=2, label=label,
+                drawstyle="steps-post")
         ax.axhline(50, color="#b91c1c", linestyle="--", linewidth=1,
                    label="V2G floor 50%")
         ax.axhline(30, color="#d97706", linestyle=":", linewidth=1,
@@ -72,6 +85,13 @@ def main() -> None:
                      fontsize=12, fontweight="bold", color=color)
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8, loc="lower right")
+
+    # annotate the BEV return-hour step (arrival + first charging hour)
+    bev_ax = axes[1]
+    bev_ax.annotate("returns at 80 %,\ncharges 16:00-17:00,\ndischarges from 17:00",
+                    xy=(16, 89), xytext=(30, 66), fontsize=9,
+                    color="#1d4ed8",
+                    arrowprops=dict(arrowstyle="->", color="#1d4ed8", linewidth=1))
 
     fig.suptitle("Figure 4.1  -  Battery SoC over one representative week, "
                  "by typology (Israel V2G, July)",
