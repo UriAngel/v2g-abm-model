@@ -20,6 +20,7 @@ ev_model,NISSAN LEAF,236,"LEAF (232) + NISSAN LEAF (4); CHAdeMO - true V2G capab
 ev_model,KIA EV9,65,"V2L; V2G-class platform (first certified V2G car on Quasar 2)"
 ev_model,RENAULT 5,23,AC V2G capable in EU markets
 ev_model,GENESIS GV60,1021,"E-GMP 800V platform; V2L; added 2026-07-14 after completeness re-check"
-bucket,V2G_potential,9899,"IONIQ5+IONIQ6+EV6+EV9+GV60+LEAF+R5 = 4.2% of EVs; 0.24% of all cars (updated 2026-07-14, +GV60)"
-bucket,V2G_enabled_today,259,"LEAF + RENAULT 5 (approx; enablement of E-GMP cars in IL unverified)"
+bucket,beta1_V2G_potential,9899,"IONIQ5+IONIQ6+EV6+EV9+GV60+LEAF+R5 = 4.2% of EVs; 0.24% of all cars (updated 2026-07-14, +GV60)"
+bucket,beta2_V2G_capable,259,"LEAF + RENAULT 5 (vehicle-side discharge permitted)"
+bucket,beta3_V2G_operating,0,"residential export not authorised in Israel - no paid programme exists"
 bucket,V2L_counted_floor,58347,"sum of confirmed-V2L families counted above; >=25% of EVs; long tail (Sealion, XPeng, Zeekr, Deepal, Aion, EV3/EV5, Niro) not counted - realistic V2L total ~35-40% of EVs"
