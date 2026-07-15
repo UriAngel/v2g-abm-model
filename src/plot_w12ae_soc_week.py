@@ -86,10 +86,7 @@ def main() -> None:
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8, loc="lower right")
 
-    fig.suptitle("Figure 4.1  -  Battery SoC over one representative week, "
-                 "by typology (Israel V2G, July)",
-                 fontsize=13, fontweight="bold")
-    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.tight_layout()
     fig.savefig(OUT, dpi=150, facecolor="white")
     print(f"Saved {OUT}")
 

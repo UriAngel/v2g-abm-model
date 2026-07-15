@@ -44,8 +44,14 @@ DATA = {
 }
 COUNTS = {
     L_B1: ("58,347", "~195k"),
-    L_B2: ("9,899", "~101k"),
-    L_B3: ("~259", "~59k"),
+    L_B2: ("9,899", "~100k"),
+    L_B3: ("a few hundred", "~60k"),
+}
+PCT_OVERRIDE = {
+    (L_B2, 1): "~6%",
+    (L_B3, 0): "<0.5%",
+    (L_B3, 1): "~4%",
+    (L_B1, 1): "~12%",
 }
 FLOOR = {L_B1}
 
@@ -71,7 +77,7 @@ def main() -> None:
                            for i in range(len(labels))]:
         cnt = COUNTS[k][side]
         prefix = "≥" if k in FLOOR and side == 0 else ""
-        pct = f"{v:.2f}%" if v < 0.5 else f"{v:.1f}%"
+        pct = PCT_OVERRIDE.get((k, side), f"{v:.2f}%" if v < 0.5 else f"{v:.1f}%")
         ax.text(xi, v + 0.45, f"{prefix}{pct}", ha="center",
                 fontsize=10.5, fontweight="bold", color="#1e293b")
         ax.text(xi, v + 2.0, f"({cnt})", ha="center",
@@ -85,7 +91,7 @@ def main() -> None:
                  "mid-2026")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, 0.99))
 
-    ax.annotate("\u03b22\u2192\u03b23 in Israel: ~38\u00d7 gap, closed by a\nBMS software switch + OEM approval",
+    ax.annotate("\u03b22\u2192\u03b23 in Israel: ~40\u00d7 gap, closed by a\nBMS software switch + OEM approval",
                 xy=(2.0 - 0.16, 1.0), xytext=(1.55, 10.5),
                 ha="center", fontsize=9, color=PALETTE["cost"],
                 arrowprops=dict(arrowstyle="->", color=PALETTE["cost"],
