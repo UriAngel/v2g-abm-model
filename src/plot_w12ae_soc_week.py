@@ -86,13 +86,6 @@ def main() -> None:
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=8, loc="lower right")
 
-    # annotate the BEV return-hour step (arrival + first charging hour)
-    bev_ax = axes[1]
-    bev_ax.annotate("returns at 80 %,\ncharges 16:00-17:00,\ndischarges from 17:00",
-                    xy=(16, 89), xytext=(30, 66), fontsize=9,
-                    color="#1d4ed8",
-                    arrowprops=dict(arrowstyle="->", color="#1d4ed8", linewidth=1))
-
     fig.suptitle("Figure 4.1  -  Battery SoC over one representative week, "
                  "by typology (Israel V2G, July)",
                  fontsize=13, fontweight="bold")

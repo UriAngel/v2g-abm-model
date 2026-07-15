@@ -91,32 +91,40 @@ def panel_floor(ax):
 
 
 def panel_gamma_aggregator(ax):
-    # Aggregator 25 % share of the NET pool, per V2G-CAPABLE EV,
-    # at three gamma scenarios (0.30 / 0.50 / 0.70).
-    # Pool per active EV: Israel mean(5,323, 6,870) = 6,096 NIS;
-    # UK Sciurus 725 GBP -> NIS.  Per-capable = pool * 0.25 * gamma.
-    gammas = np.array([0.30, 0.50, 0.70])
-    il_pool, uk_pool = 6096.0, 725.0 * 4.7
-    il = il_pool * 0.25 * gammas
-    uk = uk_pool * 0.25 * gammas
-    x = np.arange(len(gammas)); w = 0.35
-    ax.bar(x - w/2, il, w, color=TEAL, label="Israel (NIS / capable EV)",
-           edgecolor="white")
-    ax.bar(x + w/2, uk, w, color=BLUE, label="UK Sciurus (NIS-equiv / capable EV)",
-           edgecolor="white")
-    for i in range(len(gammas)):
-        ax.text(i - w/2, il[i] + 15, f"{il[i]:,.0f}", ha="center", fontsize=8, fontweight="bold")
-        ax.text(i + w/2, uk[i] + 15, f"{uk[i]:,.0f}", ha="center", fontsize=8, fontweight="bold")
-    ax.set_xticks(x)
-    ax.set_xticklabels([f"low\n{g:.2f}" if g == .3 else
-                        f"medium\n{g:.2f}" if g == .5 else f"high\n{g:.2f}"
-                        for g in gammas], fontsize=9)
-    ax.set_xlabel("gamma (SEM opt-in share of capable EVs)", fontsize=10)
-    ax.set_ylabel("Annual aggregator revenue (NIS / capable EV)", fontsize=10)
-    ax.set_title("(8) Aggregator revenue vs gamma (25 % share of NET pool)",
+    """(8) Percentage change of aggregator total revenue when the SEM
+    behavioural inputs or the opt-in share move.
+
+    Opt-in share = Phi(w * shift / 0.64) with the Mehdizadeh path weights
+    (Trust: 0.388 direct + 0.174*0.205 via Attitude = 0.424; Vehicle
+    Battery Concern: 0.174*(-0.177) = -0.031).  Aggregator revenue scales
+    linearly with the opted-in count because per-participant dispatch is
+    independent of Intention (the OSP never binds at baseline tariffs).
+    gamma is drawn on the same axis, mapped linearly 0.30..0.70.
+    """
+    from math import erf, sqrt
+    def phi(z):
+        return 0.5 * (1.0 + erf(z / sqrt(2.0)))
+    x = np.linspace(-1, 1, 81)
+    sd_int = 0.64
+    w_trust = 0.388 + 0.174 * 0.205
+    w_vbc = 0.174 * (-0.177)
+    rev_trust = (np.array([phi(w_trust * s / sd_int) for s in x]) / 0.5 - 1) * 100
+    rev_vbc = (np.array([phi(w_vbc * s / sd_int) for s in x]) / 0.5 - 1) * 100
+    rev_gamma = ((0.5 + 0.2 * x) / 0.5 - 1) * 100
+    ax.plot(x, rev_trust, color=TEAL, linewidth=2.2,
+            label="Trust mean shift (SEM factor)")
+    ax.plot(x, rev_vbc, color="#b45309", linewidth=2.2,
+            label="Battery-concern mean shift (SEM factor)")
+    ax.plot(x, rev_gamma, color=BLUE, linewidth=2.2, linestyle="--",
+            label="gamma directly (0.30 to 0.70)")
+    ax.axhline(0, color="#94a3b8", linewidth=0.8)
+    ax.set_xlabel("shift in standard deviations (gamma mapped 0.30-0.70)",
+                  fontsize=10)
+    ax.set_ylabel("Change in aggregator total revenue (%)", fontsize=10)
+    ax.set_title("(8) Aggregator revenue vs behavioural inputs and gamma",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=8, loc="upper left")
-    ax.grid(True, axis="y", alpha=0.3)
+    ax.grid(True, alpha=0.3)
 
 
 def pair(fname, left, right, figsize=(14, 5.6)):
