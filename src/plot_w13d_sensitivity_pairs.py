@@ -116,12 +116,12 @@ def panel_gamma_aggregator(ax):
     ax.plot(x, rev_vbc, color="#b45309", linewidth=2.2,
             label="Battery-concern mean shift (SEM factor)")
     ax.plot(x, rev_gamma, color=BLUE, linewidth=2.2, linestyle="--",
-            label="gamma directly (0.30 to 0.70)")
+            label="gamma-2 directly (0.30 to 0.70)")
     ax.axhline(0, color="#94a3b8", linewidth=0.8)
-    ax.set_xlabel("shift in standard deviations (gamma mapped 0.30-0.70)",
+    ax.set_xlabel("shift in standard deviations (gamma-2 mapped 0.30-0.70)",
                   fontsize=10)
     ax.set_ylabel("Change in aggregator total revenue (%)", fontsize=10)
-    ax.set_title("(8) Aggregator revenue vs behavioural inputs and gamma",
+    ax.set_title("(8) Aggregator revenue vs behavioural inputs and gamma-2",
                  fontsize=11, fontweight="bold")
     ax.legend(fontsize=8, loc="upper left")
     ax.grid(True, alpha=0.3)
