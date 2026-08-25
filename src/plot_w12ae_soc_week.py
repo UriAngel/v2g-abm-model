@@ -47,7 +47,7 @@ def main() -> None:
         (THRESHOLD_CHARGER, "Threshold Charger", "#C26B12"),
     ]
 
-    fig, axes = plt.subplots(2, 2, figsize=(15, 8), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.5), sharex=True, sharey=True)
     axes = axes.flatten()
 
     for ax, (typology, label, color) in zip(axes, typologies):
@@ -77,14 +77,14 @@ def main() -> None:
         # Weekday labels
         day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
         ax.set_xticks([d * 24 + 12 for d in range(7)])
-        ax.set_xticklabels(day_names, fontsize=9)
+        ax.set_xticklabels(day_names, fontsize=11.5)
         ax.set_xlim(0, 168)
         ax.set_ylim(0, 105)
-        ax.set_ylabel("State of Charge (%)", fontsize=10)
+        ax.set_ylabel("State of Charge (%)", fontsize=11.5)
         ax.set_title(f"{label}",
                      fontsize=12, fontweight="bold", color=color)
         ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=8, loc="lower right")
+        ax.legend(fontsize=11.5, loc="lower right")
 
     fig.tight_layout()
     fig.savefig(OUT, dpi=150, facecolor="white")

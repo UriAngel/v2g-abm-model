@@ -30,7 +30,7 @@ digraph flow {{
          fontsize=11, color="{INK}", fillcolor="white",
          fontcolor="{INK}", penwidth=1.0, margin="0.28,0.16"];
   edge  [color="{GREY}", penwidth=1.1, arrowsize=0.75,
-         fontname="Helvetica", fontsize=9.5, fontcolor="{GREY}"];
+         fontname="Helvetica", fontsize=11, fontcolor="{GREY}"];
 
   hour  [label=<<B>Hour h&nbsp; (1 &hellip; 8,760)</B>>,
          fillcolor="{TEALF}", color="{TEAL}"];
@@ -61,7 +61,7 @@ digraph sm {{
   node  [shape=box, style="rounded,filled", fontname="Helvetica",
          fontsize=11, color="{INK}", fillcolor="white",
          fontcolor="{INK}", penwidth=1.1, margin="0.3,0.18"];
-  edge  [fontname="Helvetica", fontsize=9, color="{GREY}",
+  edge  [fontname="Helvetica", fontsize=11.5, color="{GREY}",
          fontcolor="{INK}", penwidth=1.0, arrowsize=0.75];
 
   driving [label=<<B>DRIVING</B><BR/><BR/>away, SoC falling>];

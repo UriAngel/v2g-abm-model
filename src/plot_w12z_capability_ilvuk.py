@@ -79,9 +79,9 @@ def main() -> None:
         prefix = "≥" if k in FLOOR and side == 0 else ""
         pct = PCT_OVERRIDE.get((k, side), f"{v:.2f}%" if v < 0.5 else f"{v:.1f}%")
         ax.text(xi, v + 0.45, f"{prefix}{pct}", ha="center",
-                fontsize=10.5, fontweight="bold", color="#1e293b")
+                fontsize=11.5, fontweight="bold", color="#1e293b")
         ax.text(xi, v + 2.0, f"({cnt})", ha="center",
-                fontsize=8, color=PALETTE["neutral"])
+                fontsize=11.5, color=PALETTE["neutral"])
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=11)
@@ -93,14 +93,14 @@ def main() -> None:
 
     ax.annotate("\u03b22\u2192\u03b23 in Israel: ~40\u00d7 gap, closed by a\nBMS software switch + OEM approval",
                 xy=(2.0 - 0.16, 1.0), xytext=(1.55, 10.5),
-                ha="center", fontsize=9, color=PALETTE["cost"],
+                ha="center", fontsize=11.5, color=PALETTE["cost"],
                 arrowprops=dict(arrowstyle="->", color=PALETTE["cost"],
                                 linewidth=1.0))
 
     fig.text(0.5, 0.015,
              "Israel: exact registry counts (data.gov.il, Jul 2026); V2L is a counted floor.  UK: constructed from DfT, SMMT and manufacturer data.\n"
              "β3 basket in both countries: CHAdeMO Nissan Leaf + AC-bidirectional Renault 5.  In Israel even β3 cannot yet export: not authorised.",
-             ha="center", fontsize=7.8, color=PALETTE["neutral"])
+             ha="center", fontsize=11, color=PALETTE["neutral"])
 
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     fig.savefig(OUT)

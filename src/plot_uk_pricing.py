@@ -50,9 +50,9 @@ def main() -> None:
     ax.axvspan(OCTOPUS_GO_OFFPEAK_START_HOUR, OCTOPUS_GO_OFFPEAK_END_HOUR,
                color="#dbeafe", alpha=0.4, zorder=0)
     ax.text(2.5, 33, "Octopus Go\noff-peak window",
-            ha="center", fontsize=10, color="#1f3864", style="italic")
+            ha="center", fontsize=11.5, color="#1f3864", style="italic")
     ax.text(17.5, 25, "Powerloop\nexport window",
-            ha="center", fontsize=10, color="#065f46", style="italic")
+            ha="center", fontsize=11.5, color="#065f46", style="italic")
 
     ax.set_xlabel("Hour of day", fontsize=12)
     ax.set_ylabel("Rate (pence per kWh)", fontsize=12)
@@ -62,7 +62,7 @@ def main() -> None:
     ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 24, 2)])
     ax.set_title("UK three-tariff structure for the V2G model  (24-hour view)",
                  fontsize=14, fontweight="bold")
-    ax.legend(loc="upper right", fontsize=10, framealpha=0.95)
+    ax.legend(loc="upper right", fontsize=11.5, framealpha=0.95)
     ax.grid(True, alpha=0.3)
 
     fig.tight_layout()

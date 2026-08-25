@@ -94,13 +94,13 @@ def main() -> None:
         ccy = "NIS" if i == 0 else "GBP"
         ax.text(b.get_x() + b.get_width()/2, v + 80,
                 f"{v:,.0f} NIS\n({local:,.0f} {ccy})",
-                ha="center", fontsize=9, fontweight="bold", va="bottom")
+                ha="center", fontsize=11.5, fontweight="bold", va="bottom")
     for i, (b, v) in enumerate(zip(b2, aggregator_per_ev_nis)):
         local = aggregator_per_ev[i]
         ccy = "NIS" if i == 0 else "GBP"
         ax.text(b.get_x() + b.get_width()/2, v + 80,
                 f"{v:,.0f} NIS\n({local:,.0f} {ccy})",
-                ha="center", fontsize=9, fontweight="bold", va="bottom")
+                ha="center", fontsize=11.5, fontweight="bold", va="bottom")
     ax.set_ylim(0, max(driver_per_ev_nis) * 1.30)
 
     ax.set_xticks(x)
@@ -110,7 +110,7 @@ def main() -> None:
     ax.set_title("Per V2G-active EV annual V2G revenue\n"
                  "Driver 75 % / Aggregator 25 % split",
                  fontsize=11, fontweight="bold")
-    ax.legend(loc="upper right", fontsize=10, framealpha=0.95)
+    ax.legend(loc="upper right", fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
     # Panel 2: gamma (SEM participation) sensitivity
@@ -134,19 +134,19 @@ def main() -> None:
 
     for b, v in zip(b1, il):
         ax.text(b.get_x() + b.get_width()/2, v + 30, f"{v:,.0f}",
-                ha="center", fontsize=10, fontweight="bold")
+                ha="center", fontsize=11.5, fontweight="bold")
     for b, v in zip(b2, uk_nis):
         ax.text(b.get_x() + b.get_width()/2, v + 30, f"{v:,.0f}",
-                ha="center", fontsize=10, fontweight="bold")
+                ha="center", fontsize=11.5, fontweight="bold")
 
     ax.set_xticks(x)
-    ax.set_xticklabels(gamma_labels, fontsize=10)
+    ax.set_xticklabels(gamma_labels, fontsize=11.5)
     ax.set_ylabel("Annual aggregator revenue per V2G-capable EV "
                   "(NIS-equivalent)", fontsize=11)
     ax.set_title("Sensitivity to gamma\n"
                  "(fraction of V2G-capable EVs actually participating)",
                  fontsize=11, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
+    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
     fig.suptitle(

@@ -64,9 +64,9 @@ def fig_taoz_heatmap() -> None:
 
         ax.imshow(grid, aspect="auto", cmap=cmap, vmin=0, vmax=1)
         ax.set_yticks(range(7))
-        ax.set_yticklabels(day_names, fontsize=9)
+        ax.set_yticklabels(day_names, fontsize=10.5)
         ax.set_xticks(range(0, 24, 2))
-        ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)], fontsize=8)
+        ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)], fontsize=11.5)
         ax.set_xlabel("Hour of day")
         ax.set_title(title, fontsize=11, fontweight="bold")
         # Annotate peak windows
@@ -75,7 +75,7 @@ def fig_taoz_heatmap() -> None:
             if len(in_peak):
                 start, end = in_peak[0], in_peak[-1] + 1
                 ax.text((start + end) / 2 - 0.5, dow, f"{start:02d}-{end:02d}",
-                        ha="center", va="center", fontsize=8, color="black", fontweight="bold")
+                        ha="center", va="center", fontsize=11.5, color="black", fontweight="bold")
 
     fig.suptitle(
         "Israeli residential TAOZ peak windows  -  PUA tariff book 01/2026\n"
@@ -136,7 +136,7 @@ def fig_v1g_soc_trajectory() -> None:
     for d in range(1, 7):
         ax.axvline(d * 24, color="#6b7280", linewidth=0.5, linestyle=":")
     ax.set_xticks([12 + d*24 for d in range(7)])
-    ax.set_xticklabels(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], fontsize=10)
+    ax.set_xticklabels(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], fontsize=11.5)
     ax.set_ylabel("State of charge")
     ax.set_xlabel("Day of week")
     ax.set_ylim(0.4, 1.0)
@@ -146,7 +146,7 @@ def fig_v1g_soc_trajectory() -> None:
         "70% overnight floor, ramp to typology target (89%) two hours before morning departure",
         fontsize=11, fontweight="bold",
     )
-    ax.legend(fontsize=9, loc="lower right")
+    ax.legend(fontsize=10.5, loc="lower right")
     ax.grid(alpha=0.3)
     fig.tight_layout()
     out = OUTPUTS / "v1g_soc_trajectory.png"
@@ -184,21 +184,21 @@ def fig_feeder_load_curve() -> None:
     peak_out = -load.min()
     ax_top.annotate(f"peak import = {peak_in:.0f} kW  ({peak_in/rating*100:.0f}% of rating)",
                     xy=(8000, peak_in), xytext=(7000, rating*0.7),
-                    arrowprops=dict(arrowstyle="->"), fontsize=10, fontweight="bold")
+                    arrowprops=dict(arrowstyle="->"), fontsize=11.5, fontweight="bold")
     ax_top.annotate(f"peak export = {peak_out:.0f} kW  ({peak_out/rating*100:.0f}% of rating)",
                     xy=(4500, -peak_out), xytext=(5000, -rating*0.5),
-                    arrowprops=dict(arrowstyle="->"), fontsize=10, fontweight="bold")
+                    arrowprops=dict(arrowstyle="->"), fontsize=11.5, fontweight="bold")
     ax_top.set_xlim(0, HOURS_IN_YEAR)
     ax_top.set_ylim(-rating*1.1, rating*1.1)
     ax_top.set_xticks([0, 744, 2160, 4344, 6552, HOURS_IN_YEAR-1])
-    ax_top.set_xticklabels(["Jan", "Feb", "Apr", "Jul", "Oct", "Dec"], fontsize=10)
+    ax_top.set_xticklabels(["Jan", "Feb", "Apr", "Jul", "Oct", "Dec"], fontsize=11.5)
     ax_top.set_ylabel("Feeder net load (kW)\n+ = import to households\n- = export to grid")
     ax_top.set_title(
         f"GridAgent feeder load over the full year  -  Israel V2G run  -  "
         f"Feeder 0, {len(feeder.ev_agents)} households, {rating:.0f} kVA transformer",
         fontsize=12, fontweight="bold",
     )
-    ax_top.legend(fontsize=9, loc="upper right")
+    ax_top.legend(fontsize=10.5, loc="upper right")
     ax_top.grid(alpha=0.3)
 
     # Bottom: zoom on a representative summer week
@@ -211,7 +211,7 @@ def fig_feeder_load_curve() -> None:
     for d in range(1, 7):
         ax_bot.axvline(d * 24, color="#6b7280", linewidth=0.4, linestyle=":")
     ax_bot.set_xticks([12 + d*24 for d in range(7)])
-    ax_bot.set_xticklabels(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], fontsize=10)
+    ax_bot.set_xticklabels(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], fontsize=11.5)
     ax_bot.set_xlim(0, 168)
     ax_bot.set_ylim(-rating*1.1, rating*1.1)
     ax_bot.set_ylabel("kW")
@@ -298,7 +298,7 @@ def fig_uk_breakeven() -> None:
         "Holding Octopus Go import and Wong typology shares constant",
         fontsize=12, fontweight="bold",
     )
-    ax.legend(fontsize=10, loc="upper left")
+    ax.legend(fontsize=11.5, loc="upper left")
     ax.grid(alpha=0.3)
     fig.tight_layout()
     out = OUTPUTS / "uk_v2g_breakeven.png"

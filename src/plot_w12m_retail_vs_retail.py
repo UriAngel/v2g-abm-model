@@ -54,18 +54,18 @@ def main() -> None:
     for b, v_il, v_uk_gbp in zip(range(len(typs)), il_rev, uk_rev_gbp):
         ax.text(x[b] - w/2, il_rev[b] + 200,
                 f"{il_rev[b]:,.0f} NIS", ha="center",
-                fontsize=10, fontweight="bold")
+                fontsize=11.5, fontweight="bold")
         ax.text(x[b] + w/2, uk_rev_nis[b] + 200,
                 f"{uk_rev_nis[b]:,.0f} NIS\n({v_uk_gbp:,.0f} GBP)",
-                ha="center", fontsize=9, fontweight="bold")
+                ha="center", fontsize=11.5, fontweight="bold")
 
     ax.set_xticks(x); ax.set_xticklabels(typs, fontsize=11)
     ax.set_ylabel("Annual NET V2G revenue per opted-in EV (NIS-equivalent)",
                   fontsize=11)
     ax.set_title("Retail vs retail (apples-to-apples), NET of off-peak recharge cost\n"
                  "Israel TAOZ 1.6895 minus 0.585 = 1.105 NIS/kWh margin.",
-                 fontsize=10, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
+                 fontsize=11.5, fontweight="bold")
+    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(il_rev) * 1.30)
 
@@ -89,10 +89,10 @@ def main() -> None:
         if v > 0:
             ax.text(b.get_x() + b.get_width()/2, v + 30,
                     f"GBP {v:,.0f}", ha="center",
-                    fontsize=10, fontweight="bold")
+                    fontsize=11.5, fontweight="bold")
         else:
             ax.text(b.get_x() + b.get_width()/2, 100,
-                    "no data", ha="center", fontsize=10,
+                    "no data", ha="center", fontsize=11.5,
                     fontweight="bold", color="#475569",
                     style="italic")
 

@@ -130,7 +130,7 @@ def main(typologies=None, out=None) -> None:
             for x, t in zip(xs, totals):
                 ax.text(x, -0.8, cf, ha="center", fontsize=7.5,
                         color=PALETTE["neutral"])
-                ax.text(x, t + 0.3, f"{t:.1f}", ha="center", fontsize=8,
+                ax.text(x, t + 0.3, f"{t:.1f}", ha="center", fontsize=11.5,
                         fontweight="bold", color="#1e293b")
             if cf == "V2G":
                 for x, t, tag in zip(xs, totals, tags):
@@ -141,11 +141,11 @@ def main(typologies=None, out=None) -> None:
                             fontweight="bold", color=color)
 
     ax.set_xticks(typ_centers)
-    ax.set_xticklabels([t.replace(" ", "\n") for t in typologies], fontsize=10.5)
+    ax.set_xticklabels([t.replace(" ", "\n") for t in typologies], fontsize=11.5)
 
     ax.axhline(100 - EOL_SOH_PCT, color="#1e293b", linestyle="--", linewidth=1.0)
     ax.text(typ_centers[-1] + 0.62, 100 - EOL_SOH_PCT + 0.35,
-            "EoL (20 pp = 80 % SoH)", fontsize=8.5, color="#1e293b", ha="right")
+            "EoL (20 pp = 80 % SoH)", fontsize=11.5, color="#1e293b", ha="right")
 
     ax.set_ylabel("10-year capacity loss (percentage points)")
     ax.set_title("Battery aging by typology, chemistry, counterfactual — "
@@ -164,7 +164,7 @@ def main(typologies=None, out=None) -> None:
              "V0 baseline: visual read of Wong Fig 3 (INTERPRET).  V1G: Etxandi-Santolaya 2024 upper bound.  "
              "V2G bars and calendar/cycle split: Wong Appendix E published betas (delta = beta x kWh/yr x 10).  "
              "Category tags: Wong Sec 2.4 statistics.",
-             ha="center", fontsize=8.5, color=PALETTE["neutral"])
+             ha="center", fontsize=11.5, color=PALETTE["neutral"])
 
     fig.tight_layout(rect=(0, 0.045, 1, 1))
     fig.savefig(out)

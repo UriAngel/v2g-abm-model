@@ -54,7 +54,7 @@ def main() -> None:
         if filt:
             ax.annotate(filt, xy=(xc + w_top + 0.15, y - H / 2),
                         xytext=(7.0, y - H / 2), ha="left", va="center",
-                        fontsize=9.5, color="#1e293b",
+                        fontsize=11, color="#1e293b",
                         arrowprops=dict(arrowstyle="-", color="#94a3b8",
                                         linewidth=0.9))
         y -= (H + GAP)
@@ -66,7 +66,7 @@ def main() -> None:
     fig.text(0.5, 0.015,
              "Each stage is measurable: \u03b1 and \u03b21-\u03b23 from a national vehicle registry, "
              "\u03b31 from driving typologies, \u03b32 from behavioural survey data.",
-             ha="center", fontsize=8.5, color=PALETTE["neutral"])
+             ha="center", fontsize=11.5, color=PALETTE["neutral"])
 
     fig.tight_layout(rect=(0, 0.045, 1, 1))
     fig.savefig(OUT)

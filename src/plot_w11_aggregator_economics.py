@@ -70,7 +70,7 @@ def aggregator_revenue_m_currency(country: str, alpha: float, bgamma: float,
 
 def fig1_alpha_beta_heatmap() -> Path:
     """alpha x (beta*gamma) heatmap, matching the deck layout."""
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6.5))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 6))
     for ax, country in zip(axes, ("Israel", "UK")):
         grid = np.zeros((len(BGAMMA_GRID), len(ALPHA_GRID)))
         for i, bg in enumerate(BGAMMA_GRID):
@@ -82,12 +82,12 @@ def fig1_alpha_beta_heatmap() -> Path:
         ax.set_xticklabels([f"{a:.2f}" for a in ALPHA_GRID])
         ax.set_yticks(range(len(BGAMMA_GRID)))
         ax.set_yticklabels([f"{b:.2f}" for b in BGAMMA_GRID])
-        ax.set_xlabel(r"$\alpha$  -  EV share of total fleet", fontsize=11)
+        ax.set_xlabel(r"$\alpha$  -  EV share of total fleet", fontsize=12.5)
         ax.set_ylabel(r"$\beta \cdot \gamma$  -  capable AND participating share of EVs",
-                      fontsize=11)
+                      fontsize=12.5)
         currency = "NIS" if country == "Israel" else "GBP"
-        ax.set_title(f"{country}  -  aggregator annual revenue (M {currency})",
-                     fontsize=12, fontweight="bold")
+        ax.set_title(f"{country}  -  aggregator annual revenue (millions of {currency})",
+                     fontsize=13.5, fontweight="bold")
 
         vmax = grid.max() if grid.max() > 0 else 1.0
         for i in range(len(BGAMMA_GRID)):
@@ -95,20 +95,20 @@ def fig1_alpha_beta_heatmap() -> Path:
                 c = "white" if grid[i, j] > vmax * 0.55 else "#14201d"
                 ax.text(j, i, f"{grid[i, j]:.0f}",
                         ha="center", va="center",
-                        color=c, fontsize=10, fontweight="bold")
+                        color=c, fontsize=11, fontweight="bold")
 
         plt.colorbar(im, ax=ax, fraction=0.045, pad=0.04,
-                     label=f"M {currency} per year")
+                     label=f"millions of {currency} per year")
 
     fig.suptitle(
         "Aggregator annual revenue under alpha x (beta*gamma) sensitivity   "
         f"-   aggregator share {AGGREGATOR_SHARE_DEFAULT*100:.0f}% of V2G margin",
-        fontsize=12, fontweight="bold",
+        fontsize=13.5, fontweight="bold",
     )
     fig.text(0.5, 0.02,
              "alpha = EV share of total fleet  ·  beta*gamma = share of EVs "
              "BOTH V2G-capable AND participating (Wong-weighted).",
-             ha="center", fontsize=9, style="italic", color="#555")
+             ha="center", fontsize=10.5, style="italic", color="#555")
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     out = OUTDIR / "w11_aggregator_alpha_beta.png"
     fig.savefig(out, dpi=150, facecolor="white")

@@ -49,16 +49,16 @@ def panel_taoz_net(ax):
     ax.bar(x - w/2, dc, w, color=TEAL, label="Daily Charger", edgecolor="white")
     ax.bar(x + w/2, bev, w, color=BLUE, label="BEV 2nd Vehicle", edgecolor="white")
     for i in range(len(ratios)):
-        ax.text(i - w/2, dc[i] + 250, f"{dc[i]:,.0f}", ha="center", fontsize=8, fontweight="bold")
-        ax.text(i + w/2, bev[i] + 250, f"{bev[i]:,.0f}", ha="center", fontsize=8, fontweight="bold")
+        ax.text(i - w/2, dc[i] + 250, f"{dc[i]:,.0f}", ha="center", fontsize=11.5, fontweight="bold")
+        ax.text(i + w/2, bev[i] + 250, f"{bev[i]:,.0f}", ha="center", fontsize=11.5, fontweight="bold")
     ax.set_xticks(x)
     ax.set_xticklabels([f"{r:.1f}x" + ("\n(current)" if r == 3.2 else "")
-                        for r in ratios], fontsize=9)
-    ax.set_xlabel("TAOZ peak / off-peak ratio", fontsize=10)
-    ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=10)
+                        for r in ratios], fontsize=11.5)
+    ax.set_xlabel("TAOZ peak / off-peak ratio", fontsize=11.5)
+    ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=11.5)
     ax.set_title("(3) Israel TAOZ spread (NET basis)",
                  fontsize=11, fontweight="bold")
-    ax.legend(fontsize=8, loc="upper left")
+    ax.legend(fontsize=11.5, loc="upper left")
     ax.grid(True, axis="y", alpha=0.3)
 
 
@@ -73,20 +73,20 @@ def panel_floor(ax):
     ax.plot(floors, bev, "-s", color=BLUE, linewidth=2, markersize=7,
             label="BEV 2nd Vehicle")
     for f, v in zip(floors, dc):
-        ax.text(f, v - 450, f"{v:,.0f}", ha="center", fontsize=8,
+        ax.text(f, v - 450, f"{v:,.0f}", ha="center", fontsize=11.5,
                 fontweight="bold", color=TEAL)
     for f, v in zip(floors, bev):
-        ax.text(f, v + 280, f"{v:,.0f}", ha="center", fontsize=8,
+        ax.text(f, v + 280, f"{v:,.0f}", ha="center", fontsize=11.5,
                 fontweight="bold", color=BLUE)
     ax.axvline(50, color=RED, linestyle=":", linewidth=1,
                label="contractual floor 50 %")
-    ax.set_xlabel("V2G SoC floor (%)", fontsize=10)
-    ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=10)
+    ax.set_xlabel("V2G SoC floor (%)", fontsize=11.5)
+    ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=11.5)
     ax.set_title("(4) SoC floor sweep (3-seed avg, 90 % cap)",
                  fontsize=11, fontweight="bold")
     ax.set_xticks(floors)
     ax.set_ylim(2900, 9400)
-    ax.legend(fontsize=8, loc="upper right")
+    ax.legend(fontsize=11.5, loc="upper right")
     ax.grid(True, alpha=0.3)
 
 
@@ -119,11 +119,11 @@ def panel_gamma_aggregator(ax):
             label="gamma-2 directly (0.30 to 0.70)")
     ax.axhline(0, color="#94a3b8", linewidth=0.8)
     ax.set_xlabel("shift in standard deviations (gamma-2 mapped 0.30-0.70)",
-                  fontsize=10)
-    ax.set_ylabel("Change in aggregator total revenue (%)", fontsize=10)
+                  fontsize=11.5)
+    ax.set_ylabel("Change in aggregator total revenue (%)", fontsize=11.5)
     ax.set_title("(8) Aggregator revenue vs behavioural inputs and gamma-2",
                  fontsize=11, fontweight="bold")
-    ax.legend(fontsize=8, loc="upper left")
+    ax.legend(fontsize=11.5, loc="upper left")
     ax.grid(True, alpha=0.3)
 
 

@@ -135,27 +135,27 @@ def draw(country: str, currency: str, premium: float,
     for i in range(n_typ):
         # Revenue labels mid-bar
         ax.text(x[i] - bw/2, rev_nmc[i]/2, f"Rev\n{rev_nmc[i]:,.0f}",
-                ha="center", va="center", fontsize=9, color="white",
+                ha="center", va="center", fontsize=11.5, color="white",
                 fontweight="bold")
         ax.text(x[i] + bw/2, rev_lfp[i]/2, f"Rev\n{rev_lfp[i]:,.0f}",
-                ha="center", va="center", fontsize=9, color="#0b3d22",
+                ha="center", va="center", fontsize=11.5, color="#0b3d22",
                 fontweight="bold")
         # Battery cost labels placed just ABOVE the zero line so they
         # don't overlap with x-tick labels or get clipped by tight y_min.
         ax.text(x[i] - bw/2, max(rev_nmc)*0.01,
                 f"-{bat_nmc[i]:,.0f}", ha="center", va="bottom",
-                fontsize=9, color="#b91c1c", fontweight="bold")
+                fontsize=11.5, color="#b91c1c", fontweight="bold")
         ax.text(x[i] + bw/2, max(rev_lfp)*0.01,
                 f"-{bat_lfp[i]:,.0f}", ha="center", va="bottom",
-                fontsize=9, color="#9a3412", fontweight="bold")
+                fontsize=11.5, color="#9a3412", fontweight="bold")
         # Net operating P&L ABOVE the revenue bar (slightly higher for LFP
         # so the two labels don't merge into each other)
         ax.text(x[i] - bw/2, rev_nmc[i] + max(rev_nmc)*0.08,
-                f"NMC net\n{op_nmc[i]:+,.0f}", ha="center", fontsize=9,
+                f"NMC net\n{op_nmc[i]:+,.0f}", ha="center", fontsize=11.5,
                 fontweight="bold",
                 color=("#0f766e" if op_nmc[i] > 0 else "#b91c1c"))
         ax.text(x[i] + bw/2, rev_lfp[i] + max(rev_lfp)*0.08,
-                f"LFP net\n{op_lfp[i]:+,.0f}", ha="center", fontsize=9,
+                f"LFP net\n{op_lfp[i]:+,.0f}", ha="center", fontsize=11.5,
                 fontweight="bold",
                 color=("#0f766e" if op_lfp[i] > 0 else "#b91c1c"))
 
@@ -173,7 +173,7 @@ def draw(country: str, currency: str, premium: float,
                  fontsize=11, fontweight="bold")
     # Legend BELOW the plot so it does not overlap the bars
     ax.legend(loc="upper center", bbox_to_anchor=(0.75, -0.10),
-              ncol=4, fontsize=8.5, framealpha=0.95)
+              ncol=4, fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
     # RIGHT: payback
@@ -209,7 +209,7 @@ def draw(country: str, currency: str, premium: float,
                f"Sciurus alternative: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/yr total (payback ~5.5 y).")
     ax.set_title(f"{country}  -  V2G PREMIUM payback (years)\n{sub}",
                  fontsize=11, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
+    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(20, max(pb_nmc_d + pb_lfp_d) * 1.20))
 
