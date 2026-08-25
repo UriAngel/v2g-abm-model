@@ -110,7 +110,7 @@ def draw(country: str, currency: str, premium: float,
                          "rev": rev, "bat": bat,
                          "op": op, "pay": pay})
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6.0))
+    fig, axes = plt.subplots(1, 2, figsize=(15, 6.4))
 
     # LEFT: operating P&L
     ax = axes[0]
@@ -150,12 +150,12 @@ def draw(country: str, currency: str, premium: float,
                 fontsize=11.5, color="#9a3412", fontweight="bold")
         # Net operating P&L ABOVE the revenue bar (slightly higher for LFP
         # so the two labels don't merge into each other)
-        ax.text(x[i] - bw/2, rev_nmc[i] + max(rev_nmc)*0.08,
-                f"NMC net\n{op_nmc[i]:+,.0f}", ha="center", fontsize=11.5,
+        ax.text(x[i] - bw/2 - 0.06, rev_nmc[i] + max(rev_nmc)*0.05,
+                f"NMC net\n{op_nmc[i]:+,.0f}", ha="right", fontsize=10.5,
                 fontweight="bold",
                 color=("#0f766e" if op_nmc[i] > 0 else "#b91c1c"))
-        ax.text(x[i] + bw/2, rev_lfp[i] + max(rev_lfp)*0.08,
-                f"LFP net\n{op_lfp[i]:+,.0f}", ha="center", fontsize=11.5,
+        ax.text(x[i] + bw/2 + 0.06, rev_lfp[i] + max(rev_lfp)*0.05,
+                f"LFP net\n{op_lfp[i]:+,.0f}", ha="left", fontsize=10.5,
                 fontweight="bold",
                 color=("#0f766e" if op_lfp[i] > 0 else "#b91c1c"))
 
@@ -167,13 +167,13 @@ def draw(country: str, currency: str, premium: float,
     # line naturally sits low because revenue >> battery cost.
     max_bat = max(bat_nmc + bat_lfp)
     max_rev = max(rev_nmc + rev_lfp)
-    ax.set_ylim(-max_bat * 1.15, max_rev * 1.30)
-    ax.set_title(f"{country}  -  Annual operating P&L (active typologies)\n"
+    ax.set_ylim(-max_bat * 1.15, max_rev * 1.38)
+    ax.set_title("Annual operating P&L (active typologies)\n"
                  "V2G revenue minus battery degradation cost.",
-                 fontsize=11, fontweight="bold")
+                 fontsize=12, fontweight="bold", loc="center")
     # Legend BELOW the plot so it does not overlap the bars
-    ax.legend(loc="upper center", bbox_to_anchor=(0.75, -0.10),
-              ncol=4, fontsize=11.5, framealpha=0.95)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10),
+              ncol=2, fontsize=10.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
     # RIGHT: payback
@@ -207,8 +207,8 @@ def draw(country: str, currency: str, premium: float,
     if country == "UK":
         sub = (f"Premium {premium:,.0f} GBP.  Power Pack net of 7 p Go recharge;\n"
                f"Sciurus alternative: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/yr total (payback ~5.5 y).")
-    ax.set_title(f"{country}  -  V2G PREMIUM payback (years)\n{sub}",
-                 fontsize=11, fontweight="bold")
+    ax.set_title(f"V2G premium payback (years)\n{sub}",
+                 fontsize=12, fontweight="bold", loc="center")
     ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(20, max(pb_nmc_d + pb_lfp_d) * 1.20))
@@ -216,7 +216,7 @@ def draw(country: str, currency: str, premium: float,
     fig.suptitle(f"{country}: V2G driver economics  -  active typologies only "
                  "(Public + Threshold dropped, structural zero V2G)",
                  fontsize=12, fontweight="bold")
-    fig.tight_layout(rect=(0.01, 0.07, 0.99, 0.93))
+    fig.tight_layout(rect=(0.01, 0.11, 0.99, 0.93))
     out = OUTDIR / f"w11c_pnl_active_{country.lower()}.png"
     fig.savefig(out, dpi=150, facecolor="white")
     plt.close(fig)

@@ -28,14 +28,14 @@ def panel_capex(ax):
     bars = ax.bar(labels, paybacks, color=colors, edgecolor="white")
     for b, v in zip(bars, paybacks):
         ax.text(b.get_x() + b.get_width()/2, v + 0.15, f"{v:.1f} y",
-                ha="center", fontsize=10, fontweight="bold")
+                ha="center", fontsize=11.5, fontweight="bold")
     ax.axhline(10, color="#b91c1c", linestyle="--", linewidth=1,
                label="10-yr battery life")
-    ax.set_ylabel("V2G premium payback (years)", fontsize=10)
+    ax.set_ylabel("V2G premium payback (years)", fontsize=11.5)
     ax.set_title("(1) Bidirectional charger CAPEX, 2026 vs 2028",
-                 fontsize=11, fontweight="bold")
+                 fontsize=12.5, fontweight="bold")
     ax.set_ylim(0, 12)
-    ax.legend(fontsize=8, loc="upper right")
+    ax.legend(fontsize=10, loc="upper right")
     ax.grid(True, axis="y", alpha=0.3)
 
 
@@ -47,16 +47,16 @@ def panel_uk_rate(ax):
     pb = [prem / (kwh * (r / 100 - go_rt)) for r in rates]
     ax.plot(rates, pb, "-o", color="#1d4ed8", linewidth=2, markersize=8)
     for r, p in zip(rates, pb):
-        ax.text(r, p + 0.5, f"{p:.1f}y", ha="center", fontsize=9, fontweight="bold")
+        ax.text(r, p + 0.5, f"{p:.1f}y", ha="center", fontsize=10.5, fontweight="bold")
     ax.axhline(10, color="#b91c1c", linestyle="--", linewidth=1,
                label="10-yr battery life")
     ax.axvline(12, color="#475569", linestyle=":", linewidth=1,
                alpha=0.7, label="current Power Pack 12 p")
-    ax.set_xlabel("Power Pack export rate (p/kWh)", fontsize=10)
-    ax.set_ylabel("Payback (years)", fontsize=10)
+    ax.set_xlabel("Power Pack export rate (p/kWh)", fontsize=11.5)
+    ax.set_ylabel("Payback (years)", fontsize=11.5)
     ax.set_title("(2) UK Power Pack rate sweep (net of Go recharge)",
-                 fontsize=11, fontweight="bold")
-    ax.legend(fontsize=8, loc="upper right")
+                 fontsize=12.5, fontweight="bold")
+    ax.legend(fontsize=10, loc="upper right")
     ax.grid(True, alpha=0.3)
 
 
@@ -69,14 +69,14 @@ def panel_taoz(ax):
     ax.bar(x - w/2, dc_rev, w, color="#0f766e", label="Daily Charger", edgecolor="white")
     ax.bar(x + w/2, bev_rev, w, color="#1d4ed8", label="BEV 2nd Vehicle", edgecolor="white")
     for i, (d, b) in enumerate(zip(dc_rev, bev_rev)):
-        ax.text(i - w/2, d + 200, f"{d:,}", ha="center", fontsize=8, fontweight="bold")
-        ax.text(i + w/2, b + 200, f"{b:,}", ha="center", fontsize=8, fontweight="bold")
-    ax.set_xticks(x); ax.set_xticklabels(ratios, fontsize=9)
-    ax.set_ylabel("Annual GROSS V2G revenue (NIS/EV/yr)", fontsize=10)
+        ax.text(i - w/2, d + 200, f"{d:,}", ha="center", fontsize=10, fontweight="bold")
+        ax.text(i + w/2, b + 200, f"{b:,}", ha="center", fontsize=10, fontweight="bold")
+    ax.set_xticks(x); ax.set_xticklabels(ratios, fontsize=10.5)
+    ax.set_ylabel("Annual GROSS V2G revenue (NIS/EV/yr)", fontsize=11.5)
     ax.set_title("(3) Israel TAOZ peak/off-peak spread\n"
                  "annual gross (subtract ~1,940 NIS/yr CAPEX amortisation for net)",
-                 fontsize=10, fontweight="bold")
-    ax.legend(fontsize=8, loc="upper left")
+                 fontsize=11.5, fontweight="bold")
+    ax.legend(fontsize=10, loc="upper left")
     ax.grid(True, axis="y", alpha=0.3)
 
 
@@ -89,14 +89,14 @@ def panel_plugin(ax):
     v2g_kwh = [4437, 4919, 5239, 5654]
     ax.plot(prob_pct, v2g_kwh, "-o", color="#0f766e", linewidth=2, markersize=8)
     for p, v in zip(prob_pct, v2g_kwh):
-        ax.text(p, v + 60, f"{v:,}", ha="center", fontsize=9, fontweight="bold")
+        ax.text(p, v + 60, f"{v:,}", ha="center", fontsize=10.5, fontweight="bold")
     ax.axvline(6.11/7*100, color="#b91c1c", linestyle=":", linewidth=1,
                label="Wong Table 1 anchor (87 %)")
-    ax.set_xlabel("Plug-in probability (% of home evenings)", fontsize=10)
-    ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=10)
+    ax.set_xlabel("Plug-in probability (% of home evenings)", fontsize=11.5)
+    ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=11.5)
     ax.set_title("(4) Plug-in probability robustness (3-seed avg, 90 % cap)",
-                 fontsize=11, fontweight="bold")
-    ax.legend(fontsize=8, loc="lower right")
+                 fontsize=12.5, fontweight="bold")
+    ax.legend(fontsize=10, loc="lower right")
     ax.grid(True, alpha=0.3)
 
 
@@ -112,12 +112,12 @@ def panel_return_home(ax):
     ax.axvspan(17, 22, color="#d97706", alpha=0.10,
                label="TAOZ peak 17-22")
     for h, v in zip(hours, v2g):
-        ax.text(h, v + 60, f"{v:,}", ha="center", fontsize=9, fontweight="bold")
-    ax.set_xlabel("Arrival home hour", fontsize=10)
-    ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=10)
+        ax.text(h, v + 60, f"{v:,}", ha="center", fontsize=10.5, fontweight="bold")
+    ax.set_xlabel("Arrival home hour", fontsize=11.5)
+    ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=11.5)
     ax.set_title("(6) Return-home hour sensitivity (3-seed avg, 90 % cap)",
-                 fontsize=11, fontweight="bold")
-    ax.legend(fontsize=8, loc="lower left")
+                 fontsize=12.5, fontweight="bold")
+    ax.legend(fontsize=10, loc="lower left")
     ax.grid(True, alpha=0.3)
     ax.set_ylim(3500, 6500)
 
@@ -138,18 +138,18 @@ def panel_drive_days(ax):
     ax.axvline(6.43, color="#0f766e", linestyle=":", linewidth=1, alpha=0.6)
     ax.axvline(4.74, color="#1d4ed8", linestyle=":", linewidth=1, alpha=0.6)
     for x, y in zip(drive_days, dc_v2g):
-        ax.text(x, y - 180, f"{y:,}", ha="center", fontsize=8,
+        ax.text(x, y - 180, f"{y:,}", ha="center", fontsize=10,
                 fontweight="bold", color="#0f766e")
     for x, y in zip(drive_days, bev_v2g):
-        ax.text(x, y + 110, f"{y:,}", ha="center", fontsize=8,
+        ax.text(x, y + 110, f"{y:,}", ha="center", fontsize=10,
                 fontweight="bold", color="#1d4ed8")
-    ax.set_xlabel("Driving days per week", fontsize=10)
-    ax.set_ylabel("Annual V2G kWh / car", fontsize=10)
+    ax.set_xlabel("Driving days per week", fontsize=11.5)
+    ax.set_ylabel("Annual V2G kWh / car", fontsize=11.5)
     ax.set_title("(7) Drive-days sensitivity (3-seed avg, 90 % cap)\n"
                  "matched 87 % plug-in; curves converge at 0 d/wk",
-                 fontsize=10, fontweight="bold")
+                 fontsize=11.5, fontweight="bold")
     ax.set_xticks(drive_days)
-    ax.legend(fontsize=8, loc="lower left")
+    ax.legend(fontsize=10, loc="lower left")
     ax.grid(True, alpha=0.3)
     ax.set_ylim(4300, 7100)
 
@@ -179,19 +179,19 @@ def panel_grid(ax):
     ax.axhline(kva, color="#d97706", linestyle=":", linewidth=1, alpha=0.8,
                label="517 kVA nameplate rating")
     ax.plot([100], [432], "o", color="#0f766e", markersize=8)
-    ax.text(99, 432 + 18, "+432", ha="right", fontsize=9, fontweight="bold")
+    ax.text(99, 432 + 18, "+432", ha="right", fontsize=10.5, fontweight="bold")
     ax.plot([96.4], [413.6], "x", color="#b91c1c", markersize=9)
     ax.annotate("margin crossed at 96 %", xy=(96.4, 413.6), xytext=(58, 470),
-                fontsize=8, color="#b91c1c",
+                fontsize=10, color="#b91c1c",
                 arrowprops=dict(arrowstyle="->", color="#b91c1c", linewidth=0.9))
     ax.set_xlabel(r"$\beta \cdot \gamma$  (% of the feeder's 54 EVs "
-                  "discharging simultaneously)", fontsize=10)
+                  "discharging simultaneously)", fontsize=11.5)
     ax.set_ylabel("Net feeder load (kW)   negative = import, positive = export",
-                  fontsize=10)
+                  fontsize=11.5)
     ax.set_title("(5) Feeder worst-case envelope, all participants discharging\n"
                  "at once (54 HH x 1 EV, 517 kVA; simulated year: zero denials)",
-                 fontsize=10, fontweight="bold")
-    ax.legend(fontsize=7.5, loc="upper left")
+                 fontsize=11.5, fontweight="bold")
+    ax.legend(fontsize=9.5, loc="upper left")
     ax.grid(True, alpha=0.3)
     ax.set_ylim(-260, 620)
 
