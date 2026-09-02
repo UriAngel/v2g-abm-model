@@ -79,7 +79,7 @@ def main() -> None:
 
     ax1.set_xlabel("EVs per household on the feeder (all discharging at once)")
     ax1.set_ylabel("Net feeder load (kW)")
-    ax1.set_title("(a) Feeder worst case as EV ownership deepens")
+    ax1.set_title("(a) Feeder worst case as ownership deepens", fontsize=17)
     ax1.legend(fontsize=9.5, loc="upper left")
     ax1.set_ylim(-260, 900)
 
@@ -97,7 +97,7 @@ def main() -> None:
              color=PALETTE["neutral"])
     ax2.set_xlabel("EV share of the national fleet, alpha (%)")
     ax2.set_ylabel("National NET V2G pool (millions of NIS per year)")
-    ax2.set_title("(b) National revenue pool toward the 2030 target")
+    ax2.set_title("(b) National pool toward the 2030 target", fontsize=17)
     ax2.legend(fontsize=9.5, loc="upper left")
     ax2.set_xlim(4, 33)
 

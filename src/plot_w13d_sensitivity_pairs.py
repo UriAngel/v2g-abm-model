@@ -56,7 +56,7 @@ def panel_taoz_net(ax):
                         for r in ratios], fontsize=11.5)
     ax.set_xlabel("TAOZ peak / off-peak ratio", fontsize=11.5)
     ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=11.5)
-    ax.set_title("(3) Israel TAOZ spread (NET basis)",
+    ax.set_title("(3) TAOZ spread (NET basis)",
                  fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=13.0, loc="upper left")
     ax.grid(True, axis="y", alpha=0.3)
@@ -82,7 +82,7 @@ def panel_floor(ax):
                label="contractual floor 50 %")
     ax.set_xlabel("V2G SoC floor (%)", fontsize=11.5)
     ax.set_ylabel("Annual NET V2G revenue (NIS / opted-in EV)", fontsize=11.5)
-    ax.set_title("(4) SoC floor sweep (3-seed avg, 90 % cap)",
+    ax.set_title("(4) SoC floor sweep",
                  fontsize=18.0, fontweight="bold")
     ax.set_xticks(floors)
     ax.set_ylim(2900, 9400)
@@ -121,7 +121,7 @@ def panel_gamma_aggregator(ax):
     ax.set_xlabel("shift in standard deviations (gamma-2 mapped 0.30-0.70)",
                   fontsize=11.5)
     ax.set_ylabel("Change in aggregator total revenue (%)", fontsize=11.5)
-    ax.set_title("(8) Aggregator revenue vs behavioural inputs and gamma-2",
+    ax.set_title("(8) Aggregator revenue sensitivity",
                  fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=13.0, loc="upper left")
     ax.grid(True, alpha=0.3)
