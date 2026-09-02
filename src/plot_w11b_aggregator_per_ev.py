@@ -1,7 +1,7 @@
 """Per-EV aggregator revenue chart.
 
 The alpha-beta heatmap shows UK total fleet aggregator revenue >>
-Israeli simply because the UK fleet is 10x bigger.  This chart
+Israeli because the UK fleet is 10x bigger.  This chart
 normalises out the fleet size effect and shows the per-V2G-EV
 aggregator revenue directly, which is the citable unit-economics
 number.

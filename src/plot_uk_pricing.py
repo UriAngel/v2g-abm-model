@@ -26,7 +26,7 @@ def main() -> None:
     octgo = np.array([octopus_go_rate_at_hour(h) for h in hours]) * 100
     export = np.array([octopus_powerloop_export_at_hour(h) for h in hours]) * 100
 
-    fig, ax = plt.subplots(figsize=(14, 6))
+    fig, ax = plt.subplots(figsize=(14, 6.8))
 
     # V0 - flat Ofgem
     ax.plot(hours, ofgem, color="#9ca3af", linewidth=3,
@@ -62,7 +62,7 @@ def main() -> None:
     ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 24, 2)])
     ax.set_title("UK three-tariff structure for the V2G model  (24-hour view)",
                  fontsize=14, fontweight="bold")
-    ax.legend(loc="upper right", fontsize=11.5, framealpha=0.95)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=11.5, framealpha=0.95)
     ax.grid(True, alpha=0.3)
 
     fig.tight_layout()

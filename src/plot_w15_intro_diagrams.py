@@ -109,45 +109,64 @@ def _arr(ax, p0, p1, color, style="-", lw=2.6, rad=0.0):
 
 
 def fig_actors() -> None:
-    fig, ax = plt.subplots(figsize=(12, 7.0))
-    ax.set_xlim(0, 12); ax.set_ylim(0, 8.4); ax.axis("off")
+    """Three-tier layout: owner / market layer (supplier + aggregator) / grid."""
+    fig, ax = plt.subplots(figsize=(11.5, 8.4))
+    ax.set_xlim(0, 12); ax.set_ylim(0, 10.3); ax.axis("off")
 
-    # layout: supplier left, owner centre, aggregator right, grid bottom-centre
-    _box(ax, 0.3, 5.3, 3.0, 1.9, "Electricity\nsupplier", "tariff, billing,\nmarket access", PALETTE["neutral"])
-    _box(ax, 4.5, 5.3, 3.0, 1.9, "EV owner", "provides the battery,\nplugs in at home", PALETTE["uk"])
-    _box(ax, 8.7, 5.3, 3.0, 1.9, "Aggregator", "recruits owners,\ncontrols dispatch", PALETTE["israel"])
-    _box(ax, 4.5, 0.6, 3.0, 1.9, "Grid", "carries the energy;\navoided peak cost\nfunds the chain", PALETTE["cost"])
+    def vbox(x, y, w, h, label, sub, color, fs=14):
+        ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.06,rounding_size=0.12",
+                                    facecolor=color, edgecolor="none", zorder=3))
+        ax.text(x+w/2, y+h*0.63, label, ha="center", va="center", fontsize=fs,
+                fontweight="bold", color="white", zorder=4)
+        if sub:
+            ax.text(x+w/2, y+h*0.26, sub, ha="center", va="center", fontsize=10,
+                    color="white", alpha=0.93, zorder=4)
 
-    # supplier <-> owner (billing relationship)
-    _arr(ax, (4.4, 6.75), (3.4, 6.75), PALETTE["amber"], style="--")
-    ax.text(3.9, 7.0, "pays the bill", ha="center", fontsize=11, fontweight="bold", color=PALETTE["amber"])
-    _arr(ax, (3.4, 5.75), (4.4, 5.75), PALETTE["amber"], style="--")
-    ax.text(3.9, 5.28, "bills import,\nsettles export", ha="center", fontsize=11,
-            fontweight="bold", color=PALETTE["amber"], va="top")
+    def varr(p0, p1, color, style="-", lw=2.6, z=2, ms=24):
+        ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle="-|>", mutation_scale=ms,
+                                     linewidth=lw, linestyle=style, color=color, zorder=z))
 
-    # aggregator <-> owner
-    _arr(ax, (8.6, 6.75), (7.6, 6.75), PALETTE["amber"], style="--")
-    ax.text(8.1, 7.0, "revenue share", ha="center", fontsize=11, fontweight="bold", color=PALETTE["amber"])
-    _arr(ax, (8.6, 5.75), (7.6, 5.75), PALETTE["israel"])
-    ax.text(8.1, 5.28, "dispatch\ncommands", ha="center", fontsize=11,
-            fontweight="bold", color=PALETTE["israel"], va="top")
+    vbox(3.6, 8.2, 4.8, 1.75, "EV owner", "provides the battery,\nplugs in at home", PALETTE["uk"])
+    ax.add_patch(FancyBboxPatch((0.75, 3.7), 10.5, 3.1, boxstyle="round,pad=0.08,rounding_size=0.18",
+                                facecolor="#f1f5f9", edgecolor="#94a3b8", linewidth=1.6, zorder=1))
+    vbox(1.25, 4.75, 3.8, 1.75, "Electricity supplier", "tariff, billing,\nsettlement of export", PALETTE["neutral"], fs=13)
+    vbox(6.95, 4.75, 3.8, 1.75, "Aggregator", "EMS services: pooling,\ndispatch, grid products", PALETTE["israel"], fs=13)
+    ax.text(6.0, 4.12, "the market layer: one company, or a supplier contracting an aggregator",
+            ha="center", fontsize=11, style="italic", color="#475569", zorder=4)
+    vbox(3.6, 0.5, 4.8, 1.75, "Grid and system\noperator", "wires, balancing,\navoided peak cost", PALETTE["cost"])
 
-    # owner <-> grid (electricity, both directions)
-    _arr(ax, (5.6, 5.2), (5.6, 2.6), PALETTE["uk"], lw=3.2)
-    ax.text(5.38, 3.9, "discharge\nat peak", ha="right", fontsize=11, fontweight="bold", color=PALETTE["uk"])
-    _arr(ax, (6.4, 2.6), (6.4, 5.2), PALETTE["israel"], lw=3.2)
-    ax.text(6.62, 3.9, "charge\noff-peak", ha="left", fontsize=11, fontweight="bold", color=PALETTE["israel"])
+    # aggregator -> supplier: EMS services; supplier -> aggregator: fees
+    varr((6.85, 5.62), (5.15, 5.62), "#475569", style="--", lw=1.8, z=1, ms=16)
+    ax.text(6.0, 5.8, "EMS services", ha="center", fontsize=9.5, color="#475569", zorder=1)
+    varr((5.15, 5.05), (6.85, 5.05), "#475569", style="--", lw=1.8, z=1, ms=16)
+    ax.text(6.0, 4.82, "fees", ha="center", fontsize=9.5, color="#475569", zorder=1)
 
-    # aggregator sells pooled flexibility to the supplier (arc over the top)
-    _arr(ax, (10.2, 7.35), (1.8, 7.35), PALETTE["amber"], style="--", rad=0.16)
-    ax.text(6.0, 8.33, "sells the pooled flexibility of many vehicles",
-            ha="center", fontsize=11.5, fontweight="bold", color=PALETTE["amber"])
+    varr((4.15, 8.1), (4.15, 6.9), PALETTE["amber"], style="--")
+    varr((4.75, 6.9), (4.75, 8.1), PALETTE["amber"], style="--")
+    ax.text(3.95, 7.62, "pays the bill", ha="right", fontsize=10.5, fontweight="bold", color=PALETTE["amber"])
+    ax.text(3.95, 7.08, "export credit,\nrevenue share", ha="right", fontsize=10.5,
+            fontweight="bold", color=PALETTE["amber"])
 
-    fig.text(0.5, 0.03, "Solid arrows carry electricity and control; dashed arrows carry money.  "
-             "Every payment in the chain is funded from the consumer's bill.",
-             ha="center", fontsize=11, style="italic", color=PALETTE["neutral"])
+    varr((7.9, 6.9), (7.9, 8.1), PALETTE["israel"])
+    ax.text(8.1, 7.5, "dispatch commands", ha="left", fontsize=11, fontweight="bold", color=PALETTE["israel"])
+
+    varr((4.4, 3.6), (4.4, 2.35), PALETTE["amber"], style="--")
+    ax.text(4.2, 3.0, "network charges,\nwholesale purchases", ha="right", fontsize=10.5,
+            fontweight="bold", color=PALETTE["amber"])
+    varr((7.6, 2.35), (7.6, 3.6), PALETTE["amber"], style="--")
+    ax.text(7.8, 3.0, "payment for flexibility\nand balancing services", ha="left", fontsize=10.5,
+            fontweight="bold", color=PALETTE["amber"])
+
+    varr((5.62, 8.1), (5.62, 2.4), PALETTE["uk"], lw=3.4, z=2)
+    varr((6.38, 2.4), (6.38, 8.1), "#0a8f66", lw=3.4, z=2)
+    ax.text(5.36, 7.75, "discharge\nat peak", ha="right", fontsize=10.5, fontweight="bold", color=PALETTE["uk"])
+    ax.text(6.56, 7.75, "charge\noff-peak", ha="left", fontsize=10.5, fontweight="bold", color="#0a8f66")
+
+    fig.text(0.5, 0.02, "Dashed arrows carry money, solid arrows carry electricity and control.  "
+             "No money passes between the owner and the grid directly.",
+             ha="center", fontsize=10.5, style="italic", color="#475569")
     ax.set_title("The residential V2G value chain", fontsize=15)
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.tight_layout(rect=(0, 0.035, 1, 1))
     fig.savefig(OUT / "w15b_actors.png")
     print("Saved", OUT / "w15b_actors.png")
 
