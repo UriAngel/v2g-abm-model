@@ -86,8 +86,8 @@ def fig1_alpha_beta_heatmap() -> Path:
         ax.set_ylabel(r"$\beta \cdot \gamma$  -  capable AND participating share of EVs",
                       fontsize=12.5)
         currency = "NIS" if country == "Israel" else "GBP"
-        ax.set_title(f"{country}  -  aggregator annual revenue (millions of {currency})",
-                     fontsize=13.5, fontweight="bold")
+        ax.set_title(f"{country} (millions of {currency})",
+                     fontsize=17.5, fontweight="bold", loc="center")
 
         vmax = grid.max() if grid.max() > 0 else 1.0
         for i in range(len(BGAMMA_GRID)):
@@ -100,16 +100,12 @@ def fig1_alpha_beta_heatmap() -> Path:
         plt.colorbar(im, ax=ax, fraction=0.045, pad=0.04,
                      label=f"millions of {currency} per year")
 
-    fig.suptitle(
-        "Aggregator annual revenue under alpha x (beta*gamma) sensitivity   "
-        f"-   aggregator share {AGGREGATOR_SHARE_DEFAULT*100:.0f}% of V2G margin",
-        fontsize=13.5, fontweight="bold",
-    )
+    pass
     fig.text(0.5, 0.02,
              "alpha = EV share of total fleet  ·  beta*gamma = share of EVs "
              "BOTH V2G-capable AND participating (Wong-weighted).",
              ha="center", fontsize=10.5, style="italic", color="#555")
-    fig.tight_layout(rect=(0, 0.04, 1, 0.93))
+    fig.tight_layout(rect=(0, 0.04, 1, 1))
     out = OUTDIR / "w11_aggregator_alpha_beta.png"
     fig.savefig(out, dpi=150, facecolor="white")
     plt.close(fig)
@@ -160,7 +156,7 @@ def fig2_share_sensitivity() -> Path:
         ax.set_title(
             f"{country}  -  2030 target fleet "
             f"(alpha={alpha:.2f}, beta={beta:.2f})",
-            fontsize=12, fontweight="bold",
+            fontsize=17.5, fontweight="bold",
         )
         ax.legend(loc="center right", fontsize=10, framealpha=0.95)
         ax.grid(True, alpha=0.3)
@@ -168,7 +164,7 @@ def fig2_share_sensitivity() -> Path:
     fig.suptitle(
         "Driver vs aggregator split  -  fixed 2030 target fleet, "
         "Wong-weighted per-EV V2G revenue",
-        fontsize=12, fontweight="bold",
+        fontsize=17.5, fontweight="bold",
     )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     out = OUTDIR / "w11_aggregator_share_curve.png"

@@ -60,7 +60,7 @@ def main() -> None:
         y -= (H + GAP)
 
     ax.set_title("The V2G Funnel: what stands between a vehicle fleet "
-                 "and V2G participation", fontsize=13, fontweight="bold",
+                 "and V2G participation", fontsize=15.0, fontweight="bold",
                  pad=12)
 
     fig.text(0.5, 0.015,

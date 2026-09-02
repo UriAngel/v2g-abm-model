@@ -63,7 +63,7 @@ def main() -> None:
     ax.set_ylabel("Annual NET V2G revenue per opted-in EV (NIS-equivalent)",
                   fontsize=11)
     ax.set_title("Retail vs retail, NET basis",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.5, fontweight="bold")
     ax.legend(loc="upper left", fontsize=13.0, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(il_rev) * 1.30)
@@ -97,7 +97,7 @@ def main() -> None:
 
     ax.set_ylabel("Annual V2G revenue per active EV (GBP)", fontsize=11)
     ax.set_title("Full market picture (Daily Charger)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.5, fontweight="bold")
     ax.set_ylim(0, max(vals_gbp) * 1.30)
     ax.grid(True, axis="y", alpha=0.3)
     ax.tick_params(axis="x", labelsize=9)

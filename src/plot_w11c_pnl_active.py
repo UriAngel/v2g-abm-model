@@ -169,7 +169,7 @@ def draw(country: str, currency: str, premium: float,
     max_rev = max(rev_nmc + rev_lfp)
     ax.set_ylim(-max_bat * 1.15, max_rev * 1.38)
     ax.set_title("Annual operating P&L",
-                 fontsize=14.0, fontweight="bold", loc="center")
+                 fontsize=20, fontweight="bold", loc="center")
     # Legend BELOW the plot so it does not overlap the bars
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10),
               ncol=2, fontsize=12.0, framealpha=0.95)
@@ -207,7 +207,7 @@ def draw(country: str, currency: str, premium: float,
         sub = (f"Premium {premium:,.0f} GBP.  Power Pack net of 7 p Go recharge;\n"
                f"Sciurus alternative: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/yr total (payback ~5.5 y).")
     ax.set_title("V2G premium payback (years)",
-                 fontsize=14.0, fontweight="bold", loc="center")
+                 fontsize=20, fontweight="bold", loc="center")
     ax.legend(loc="upper left", fontsize=13.0, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(20, max(pb_nmc_d + pb_lfp_d) * 1.20))

@@ -33,7 +33,7 @@ def panel_capex(ax):
                label="10-yr battery life")
     ax.set_ylabel("V2G premium payback (years)", fontsize=11.5)
     ax.set_title("(1) Bidirectional charger CAPEX, 2026 vs 2028",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.set_ylim(0, 12)
     ax.legend(fontsize=11.5, loc="upper right")
     ax.grid(True, axis="y", alpha=0.3)
@@ -55,7 +55,7 @@ def panel_uk_rate(ax):
     ax.set_xlabel("Power Pack export rate (p/kWh)", fontsize=11.5)
     ax.set_ylabel("Payback (years)", fontsize=11.5)
     ax.set_title("(2) UK Power Pack rate sweep (net of Go recharge)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=11.5, loc="upper right")
     ax.grid(True, alpha=0.3)
 
@@ -75,7 +75,7 @@ def panel_taoz(ax):
     ax.set_ylabel("Annual GROSS V2G revenue (NIS/EV/yr)", fontsize=11.5)
     ax.set_title("(3) Israel TAOZ peak/off-peak spread\n"
                  "annual gross (subtract ~1,940 NIS/yr CAPEX amortisation for net)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=11.5, loc="upper left")
     ax.grid(True, axis="y", alpha=0.3)
 
@@ -95,7 +95,7 @@ def panel_plugin(ax):
     ax.set_xlabel("Plug-in probability (% of home evenings)", fontsize=11.5)
     ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=11.5)
     ax.set_title("(4) Plug-in probability robustness (3-seed avg, 90 % cap)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=11.5, loc="lower right")
     ax.grid(True, alpha=0.3)
 
@@ -116,7 +116,7 @@ def panel_return_home(ax):
     ax.set_xlabel("Arrival home hour", fontsize=11.5)
     ax.set_ylabel("Daily Charger V2G kWh/yr", fontsize=11.5)
     ax.set_title("(6) Return-home hour sensitivity (3-seed avg, 90 % cap)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=11.5, loc="lower left")
     ax.grid(True, alpha=0.3)
     ax.set_ylim(3500, 6500)
@@ -147,7 +147,7 @@ def panel_drive_days(ax):
     ax.set_ylabel("Annual V2G kWh / car", fontsize=11.5)
     ax.set_title("(7) Drive-days sensitivity (3-seed avg, 90 % cap)\n"
                  "matched 87 % plug-in; curves converge at 0 d/wk",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.set_xticks(drive_days)
     ax.legend(fontsize=11.5, loc="lower left")
     ax.grid(True, alpha=0.3)
@@ -190,7 +190,7 @@ def panel_grid(ax):
                   fontsize=11.5)
     ax.set_title("(5) Feeder worst-case envelope, all participants discharging\n"
                  "at once (54 HH x 1 EV, 517 kVA; simulated year: zero denials)",
-                 fontsize=14.0, fontweight="bold")
+                 fontsize=18.0, fontweight="bold")
     ax.legend(fontsize=11.0, loc="upper left")
     ax.grid(True, alpha=0.3)
     ax.set_ylim(-260, 620)
