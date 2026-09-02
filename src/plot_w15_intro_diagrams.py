@@ -109,7 +109,7 @@ def _arr(ax, p0, p1, color, style="-", lw=2.6, rad=0.0):
 
 
 def fig_actors() -> None:
-    """Three-tier layout: owner / market layer (supplier + aggregator) / grid."""
+    """Three-tier layout; electricity arrows pass BEHIND the market layer."""
     fig, ax = plt.subplots(figsize=(11.5, 8.4))
     ax.set_xlim(0, 12); ax.set_ylim(0, 10.3); ax.axis("off")
 
@@ -127,6 +127,9 @@ def fig_actors() -> None:
                                      linewidth=lw, linestyle=style, color=color, zorder=z))
 
     vbox(3.6, 8.2, 4.8, 1.75, "EV owner", "provides the battery,\nplugs in at home", PALETTE["uk"])
+    # electricity BEHIND the market layer (z below the frame)
+    varr((4.3, 8.1), (4.3, 2.4), PALETTE["uk"], lw=3.4, z=0.5)
+    varr((7.6, 2.4), (7.6, 8.1), "#0a8f66", lw=3.4, z=0.5)
     ax.add_patch(FancyBboxPatch((0.75, 3.7), 10.5, 3.1, boxstyle="round,pad=0.08,rounding_size=0.18",
                                 facecolor="#f1f5f9", edgecolor="#94a3b8", linewidth=1.6, zorder=1))
     vbox(1.25, 4.75, 3.8, 1.75, "Electricity supplier", "tariff, billing,\nsettlement of export", PALETTE["neutral"], fs=13)
@@ -135,32 +138,40 @@ def fig_actors() -> None:
             ha="center", fontsize=11, style="italic", color="#475569", zorder=4)
     vbox(3.6, 0.5, 4.8, 1.75, "Grid and system\noperator", "wires, balancing,\navoided peak cost", PALETTE["cost"])
 
+    # electricity labels on the visible bottom segments
+    ax.text(4.1, 2.82, "discharge at peak", ha="right", fontsize=10.5,
+            fontweight="bold", color=PALETTE["uk"])
+    ax.text(7.8, 2.82, "charge off-peak", ha="left", fontsize=10.5,
+            fontweight="bold", color="#0a8f66")
+
     # aggregator -> supplier: EMS services; supplier -> aggregator: fees
-    varr((6.85, 5.62), (5.15, 5.62), "#475569", style="--", lw=1.8, z=1, ms=16)
-    ax.text(6.0, 5.8, "EMS services", ha="center", fontsize=9.5, color="#475569", zorder=1)
-    varr((5.15, 5.05), (6.85, 5.05), "#475569", style="--", lw=1.8, z=1, ms=16)
-    ax.text(6.0, 4.82, "fees", ha="center", fontsize=9.5, color="#475569", zorder=1)
+    varr((6.85, 5.62), (5.15, 5.62), "#475569", style="--", lw=1.8, z=2, ms=16)
+    ax.text(6.0, 5.8, "EMS services", ha="center", fontsize=9.5, color="#475569", zorder=4)
+    varr((5.15, 5.05), (6.85, 5.05), "#475569", style="--", lw=1.8, z=2, ms=16)
+    ax.text(6.0, 4.82, "fees", ha="center", fontsize=9.5, color="#475569", zorder=4)
 
-    varr((4.15, 8.1), (4.15, 6.9), PALETTE["amber"], style="--")
-    varr((4.75, 6.9), (4.75, 8.1), PALETTE["amber"], style="--")
-    ax.text(3.95, 7.62, "pays the bill", ha="right", fontsize=10.5, fontweight="bold", color=PALETTE["amber"])
-    ax.text(3.95, 7.08, "export credit,\nrevenue share", ha="right", fontsize=10.5,
+    # owner <-> market layer money in the centre gap
+    varr((5.1, 8.1), (5.1, 6.9), PALETTE["amber"], style="--")
+    varr((6.9, 6.9), (6.9, 8.1), PALETTE["amber"], style="--")
+    ax.text(6.0, 7.7, "pays the bill", ha="center", fontsize=9.5,
+            fontweight="bold", color=PALETTE["amber"])
+    ax.text(6.0, 7.3, "export credit,", ha="center", fontsize=9.5,
+            fontweight="bold", color=PALETTE["amber"])
+    ax.text(6.0, 7.08, "revenue share", ha="center", fontsize=9.5,
             fontweight="bold", color=PALETTE["amber"])
 
-    varr((7.9, 6.9), (7.9, 8.1), PALETTE["israel"])
-    ax.text(8.1, 7.5, "dispatch commands", ha="left", fontsize=11, fontweight="bold", color=PALETTE["israel"])
+    # dispatch commands (control)
+    varr((8.25, 6.9), (8.25, 8.1), PALETTE["israel"])
+    ax.text(8.45, 7.45, "dispatch\ncommands", ha="left", fontsize=10.5,
+            fontweight="bold", color=PALETTE["israel"])
 
-    varr((4.4, 3.6), (4.4, 2.35), PALETTE["amber"], style="--")
-    ax.text(4.2, 3.0, "network charges,\nwholesale purchases", ha="right", fontsize=10.5,
-            fontweight="bold", color=PALETTE["amber"])
-    varr((7.6, 2.35), (7.6, 3.6), PALETTE["amber"], style="--")
-    ax.text(7.8, 3.0, "payment for flexibility\nand balancing services", ha="left", fontsize=10.5,
-            fontweight="bold", color=PALETTE["amber"])
-
-    varr((5.62, 8.1), (5.62, 2.4), PALETTE["uk"], lw=3.4, z=2)
-    varr((6.38, 2.4), (6.38, 8.1), "#0a8f66", lw=3.4, z=2)
-    ax.text(5.36, 7.75, "discharge\nat peak", ha="right", fontsize=10.5, fontweight="bold", color=PALETTE["uk"])
-    ax.text(6.56, 7.75, "charge\noff-peak", ha="left", fontsize=10.5, fontweight="bold", color="#0a8f66")
+    # market layer <-> grid money in the centre gap
+    varr((5.1, 3.6), (5.1, 2.35), PALETTE["amber"], style="--")
+    varr((6.9, 2.35), (6.9, 3.6), PALETTE["amber"], style="--")
+    ax.text(6.0, 3.3, "network charges,", ha="center", fontsize=9, fontweight="bold", color=PALETTE["amber"])
+    ax.text(6.0, 3.1, "wholesale purchases", ha="center", fontsize=9, fontweight="bold", color=PALETTE["amber"])
+    ax.text(6.0, 2.72, "payment for", ha="center", fontsize=9, fontweight="bold", color=PALETTE["amber"])
+    ax.text(6.0, 2.52, "flexibility services", ha="center", fontsize=9, fontweight="bold", color=PALETTE["amber"])
 
     fig.text(0.5, 0.02, "Dashed arrows carry money, solid arrows carry electricity and control.  "
              "No money passes between the owner and the grid directly.",

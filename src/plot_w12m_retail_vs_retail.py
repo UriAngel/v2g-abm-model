@@ -62,10 +62,9 @@ def main() -> None:
     ax.set_xticks(x); ax.set_xticklabels(typs, fontsize=11)
     ax.set_ylabel("Annual NET V2G revenue per opted-in EV (NIS-equivalent)",
                   fontsize=11)
-    ax.set_title("Retail vs retail (apples-to-apples), NET of off-peak recharge cost\n"
-                 "Israel TAOZ 1.6895 minus 0.585 = 1.105 NIS/kWh margin.",
-                 fontsize=11.5, fontweight="bold")
-    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
+    ax.set_title("Retail vs retail, NET basis",
+                 fontsize=14.0, fontweight="bold")
+    ax.legend(loc="upper left", fontsize=13.0, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(il_rev) * 1.30)
 
@@ -97,17 +96,13 @@ def main() -> None:
                     style="italic")
 
     ax.set_ylabel("Annual V2G revenue per active EV (GBP)", fontsize=11)
-    ax.set_title("Full market picture (Daily Charger)\n"
-                 "Retail + ancillary layers per country.",
-                 fontsize=11, fontweight="bold")
+    ax.set_title("Full market picture (Daily Charger)",
+                 fontsize=14.0, fontweight="bold")
     ax.set_ylim(0, max(vals_gbp) * 1.30)
     ax.grid(True, axis="y", alpha=0.3)
     ax.tick_params(axis="x", labelsize=9)
 
-    fig.suptitle(
-        "Israel vs UK V2G revenue - apples-to-apples retail comparison "
-        "and full market picture",
-        fontsize=12, fontweight="bold")
+    pass
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     fig.savefig(OUT, dpi=150, facecolor="white")
     plt.close(fig)

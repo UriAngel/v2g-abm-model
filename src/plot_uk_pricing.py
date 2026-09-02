@@ -26,23 +26,23 @@ def main() -> None:
     octgo = np.array([octopus_go_rate_at_hour(h) for h in hours]) * 100
     export = np.array([octopus_powerloop_export_at_hour(h) for h in hours]) * 100
 
-    fig, ax = plt.subplots(figsize=(14, 6.8))
+    fig, ax = plt.subplots(figsize=(12, 6.2))
 
     # V0 - flat Ofgem
     ax.plot(hours, ofgem, color="#9ca3af", linewidth=3,
-            label=f"V0: Ofgem default cap ({OFGEM_CAP_RATE_GBP*100:.1f} p/kWh, flat)",
+            label=f"V0: Ofgem cap ({OFGEM_CAP_RATE_GBP*100:.1f}p flat)",
             drawstyle="steps-post")
 
     # V1G - Octopus Go
     ax.plot(hours, octgo, color="#1f77b4", linewidth=3,
-            label=f"V1G: Octopus Go ({OCTOPUS_GO_OFFPEAK_GBP*100:.1f}p off-peak  /  {OCTOPUS_GO_PEAK_GBP*100:.1f}p peak)",
+            label=f"V1G: Octopus Go ({OCTOPUS_GO_OFFPEAK_GBP*100:.1f}p off-peak, {OCTOPUS_GO_PEAK_GBP*100:.1f}p peak)",
             drawstyle="steps-post")
 
     # V2G export overlay
     export_mask = export > 0
     ax.fill_between(np.arange(25)[:24], 0, export, where=export_mask, step="post",
                     color="#10b981", alpha=0.35,
-                    label=f"V2G: Powerloop export ({POWERLOOP_EXPORT_GBP*100:.1f} p/kWh paid TO driver, 16:00 to 19:00)")
+                    label=f"V2G: Powerloop export ({POWERLOOP_EXPORT_GBP*100:.1f}p to driver, 16:00-19:00)")
     ax.plot(hours, export, color="#10b981", linewidth=2.5,
             drawstyle="steps-post")
 
@@ -54,15 +54,14 @@ def main() -> None:
     ax.text(17.5, 25, "Powerloop\nexport window",
             ha="center", fontsize=11.5, color="#065f46", style="italic")
 
-    ax.set_xlabel("Hour of day", fontsize=12)
-    ax.set_ylabel("Rate (pence per kWh)", fontsize=12)
+    ax.set_xlabel("Hour of day", fontsize=13)
+    ax.set_ylabel("Rate (pence per kWh)", fontsize=13)
     ax.set_xlim(0, 23)
     ax.set_ylim(0, 35)
     ax.set_xticks(range(0, 24, 2))
     ax.set_xticklabels([f"{h:02d}:00" for h in range(0, 24, 2)])
-    ax.set_title("UK three-tariff structure for the V2G model  (24-hour view)",
-                 fontsize=14, fontweight="bold")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=11.5, framealpha=0.95)
+    ax.set_title("UK tariffs over 24 hours", fontsize=16, fontweight="bold")
+    ax.legend(loc="center", bbox_to_anchor=(0.45, 0.42), fontsize=12.5, framealpha=0.95)
     ax.grid(True, alpha=0.3)
 
     fig.tight_layout()

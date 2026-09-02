@@ -51,7 +51,7 @@ def fig_taoz_heatmap() -> None:
         ("Winter (Dec-Feb)",       1, "winter"),
     ]
     day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    fig, axes = plt.subplots(1, 3, figsize=(18, 4.5))
+    fig, axes = plt.subplots(1, 3, figsize=(14, 3.9))
 
     cmap = ListedColormap(["#bbf7d0", "#fca5a5"])   # off-peak green, peak red
 
@@ -64,24 +64,20 @@ def fig_taoz_heatmap() -> None:
 
         ax.imshow(grid, aspect="auto", cmap=cmap, vmin=0, vmax=1)
         ax.set_yticks(range(7))
-        ax.set_yticklabels(day_names, fontsize=10.5)
+        ax.set_yticklabels(day_names, fontsize=14.5)
         ax.set_xticks(range(0, 24, 2))
-        ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)], fontsize=11.5)
+        ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)], fontsize=14.5)
         ax.set_xlabel("Hour of day")
-        ax.set_title(title, fontsize=11, fontweight="bold")
+        ax.set_title(title, fontsize=15, fontweight="bold")
         # Annotate peak windows
         for dow in range(7):
             in_peak = grid[dow, :].nonzero()[0]
             if len(in_peak):
                 start, end = in_peak[0], in_peak[-1] + 1
                 ax.text((start + end) / 2 - 0.5, dow, f"{start:02d}-{end:02d}",
-                        ha="center", va="center", fontsize=11.5, color="black", fontweight="bold")
+                        ha="center", va="center", fontsize=14.5, color="black", fontweight="bold")
 
-    fig.suptitle(
-        "Israeli residential TAOZ peak windows  -  PUA tariff book 01/2026\n"
-        f"Peak (red) = {PRICE_PEAK:.2f} NIS/kWh  -  Off-peak (green) = {PRICE_OFFPEAK:.2f} NIS/kWh  -  ratio 3.2x",
-        fontsize=12, fontweight="bold",
-    )
+    fig.suptitle("Israeli TAOZ peak windows by season", fontsize=16, fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     out = OUTPUTS / "taoz_seasonal_heatmap.png"
     fig.savefig(out, dpi=150, facecolor="white")

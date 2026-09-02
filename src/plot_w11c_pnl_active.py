@@ -168,12 +168,11 @@ def draw(country: str, currency: str, premium: float,
     max_bat = max(bat_nmc + bat_lfp)
     max_rev = max(rev_nmc + rev_lfp)
     ax.set_ylim(-max_bat * 1.15, max_rev * 1.38)
-    ax.set_title("Annual operating P&L (active typologies)\n"
-                 "V2G revenue minus battery degradation cost.",
-                 fontsize=12, fontweight="bold", loc="center")
+    ax.set_title("Annual operating P&L",
+                 fontsize=14.0, fontweight="bold", loc="center")
     # Legend BELOW the plot so it does not overlap the bars
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10),
-              ncol=2, fontsize=10.5, framealpha=0.95)
+              ncol=2, fontsize=12.0, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
 
     # RIGHT: payback
@@ -207,15 +206,13 @@ def draw(country: str, currency: str, premium: float,
     if country == "UK":
         sub = (f"Premium {premium:,.0f} GBP.  Power Pack net of 7 p Go recharge;\n"
                f"Sciurus alternative: {UK_SCIURUS_TOTAL_GBP:.0f} GBP/yr total (payback ~5.5 y).")
-    ax.set_title(f"V2G premium payback (years)\n{sub}",
-                 fontsize=12, fontweight="bold", loc="center")
-    ax.legend(loc="upper left", fontsize=11.5, framealpha=0.95)
+    ax.set_title("V2G premium payback (years)",
+                 fontsize=14.0, fontweight="bold", loc="center")
+    ax.legend(loc="upper left", fontsize=13.0, framealpha=0.95)
     ax.grid(True, axis="y", alpha=0.3)
     ax.set_ylim(0, max(20, max(pb_nmc_d + pb_lfp_d) * 1.20))
 
-    fig.suptitle(f"{country}: V2G driver economics  -  active typologies only "
-                 "(Public + Threshold dropped, structural zero V2G)",
-                 fontsize=12, fontweight="bold")
+    pass
     fig.tight_layout(rect=(0.01, 0.11, 0.99, 0.93))
     out = OUTDIR / f"w11c_pnl_active_{country.lower()}.png"
     fig.savefig(out, dpi=150, facecolor="white")
